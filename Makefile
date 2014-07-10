@@ -3,7 +3,7 @@
 
 CFLAGS  ?= -Wall -Wextra -O666 -msse3 -ansi -g3 -fPIC -fvisibility=hidden
 #CFLAGS  ?= -Wall -Wextra -Werror -O666 -msse2 -ansi -g3 -fPIC -fvisibility=hidden
-DEFS    ?= -DHAVE_SYSCONF_NPROCESSORS -DHAVE_MALLOC_H
+DEFS    ?= -DHAVE_SYSCONF_NPROCESSORS -DHAVE_MALLOC_H -DPY_DEBUG
 LDFLAGS  = 
 CC      ?= gcc
 OBJS     = DynProgr_sse_byte.o DynProgr_sse_short.o DynProgr_scalar.o matrix.o fasta.o debug.o Python_extension.o

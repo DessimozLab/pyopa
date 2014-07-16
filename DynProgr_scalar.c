@@ -73,7 +73,7 @@ for( i=0; i < ls1; i++ ) {
             if( Tj < 0 ) Tj = 0;
 	    if( Tj > MaxScore ) {
 		MaxScore = Tj;
-		if( MaxScore >= options->threshold ) { return( MaxScore ); }
+		/*if( MaxScore >= options->threshold ) { return( MaxScore ); }*/
 	    }
 
             coldel[j] = Tcd;

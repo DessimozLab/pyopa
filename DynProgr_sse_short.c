@@ -80,6 +80,9 @@ EXPORT double swps3_alignmentShortSSE_lin( ProfileShort * query, const char * db
 	 *
 	 * Michael Farrar, Bioinformatics, 23(2), pp. 156-161, 2007
 	 **********************************************************************/
+#ifndef DEBUG_PY
+	printf("Linear alignment!\n");
+#endif
 
 	int i, j;
 	u_int16_t MaxScore = 0x8000;
@@ -146,8 +149,8 @@ EXPORT double swps3_alignmentShortSSE_lin( ProfileShort * query, const char * db
 			/* load the current profile */
 			/*vProfile = _mm_movpi64_epi64(current_profile[i]);*/
 			/*vProfile = _mm_loadl_epi64((__m128i*)(current_profile+i));*/
-			__asm__("movq (%1),%0" : "=x" (vProfile) : "r" (current_profile+i));
-			vProfile = _mm_unpacklo_epi8(vProfile, _mm_xor_si128(vProfile,vProfile));
+			__asm__("MOVDQA (%1),%0" : "=x" (vProfile) : "r" (current_profile+i));
+			/*vProfile = _mm_unpacklo_epi8(vProfile, _mm_xor_si128(vProfile,vProfile));*/
 			vProfile = _mm_subs_epi16(vProfile, vBias);
 
 			/* add the profile the prev. opt */

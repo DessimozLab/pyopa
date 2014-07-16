@@ -33,18 +33,18 @@
 #include <float.h>
 
 #define PAGE_ALIGN(x) (((size_t)(x)+sysconf(_SC_PAGESIZE)-1)&~(sysconf(_SC_PAGESIZE)-1))
-EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int queryLen, SBMatrix matrix ){
+EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int queryLen, SMatrix matrix ){
 	/* int segLen  = ((queryLen+7)/8 + 1) & ~1; */
 	int segLen  = (queryLen+7)/8;
 	int i,j,k;
 	int bias = 0;
-	char * pprofile;
-	ProfileShort * profile = malloc( sizeof(ProfileShort)+((segLen*MATRIX_DIM+1) & ~(0x1))*sizeof(__m64)+segLen*3*sizeof(__m128i)+64+2*sysconf(_SC_PAGESIZE) );
+	int16_t * pprofile;
+	ProfileShort * profile = malloc( sizeof(ProfileShort)+((segLen*MATRIX_DIM+1) & ~(0x1))*sizeof(__m128i)+segLen*3*sizeof(__m128i)+64+2*sysconf(_SC_PAGESIZE) );
 
 	profile->loadOpt     = (__m128i*) ((size_t) (profile->data + 15) & ~(0xf)) ;
 	profile->storeOpt    = profile->loadOpt + segLen;
 	profile->rD          = profile->storeOpt + segLen;
-	profile->profile     = (__m64*) PAGE_ALIGN(profile->rD + segLen);
+	profile->profile     = (__m128i*) PAGE_ALIGN(profile->rD + segLen);
 
 	/* Init the profile */
 	profile->len = queryLen;
@@ -53,13 +53,15 @@ EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int query
 		for(j=0; j<MATRIX_DIM; j++)
 			if (bias < -matrix[ i*MATRIX_DIM+j ])
 				bias = -matrix[ i*MATRIX_DIM+j ];
-	pprofile = (char*)profile->profile;
+	pprofile = (int16_t*)profile->profile;
 
 	for(i=0; i<MATRIX_DIM; i++)
 		for(j=0; j<segLen; j++)
 			for(k=0; k<8; k++)
-				if(j+k*segLen < queryLen)
-					*(pprofile++) = matrix[query[j+k*segLen]*MATRIX_DIM+i]+bias;
+				if(j+k*segLen < queryLen) {
+					char queryChar = query[j+k*segLen];
+					*(pprofile++) = matrix[queryChar*MATRIX_DIM+i]+bias;
+				}
 				else
 					*(pprofile++) = 0;
 	profile->bias = bias;
@@ -85,7 +87,7 @@ EXPORT double swps3_alignmentShortSSE_lin( ProfileShort * query, const char * db
 
 	__m128i * loadOpt  = query->loadOpt;
 	__m128i * storeOpt = query->storeOpt;
-	__m64   * current_profile;
+	__m128i * current_profile;
 	__m128i * swap;
 
 	__m128i vMinimums = _mm_set1_epi16(0x8000);
@@ -224,7 +226,7 @@ double swps3_alignmentShort2SSE( ProfileShort * query, const char * db, int dbLe
 	__m128i * loadOpt  = query->loadOpt;
 	__m128i * storeOpt = query->storeOpt;
 	__m128i * rD       = query->rD;
-	__m64   * current_profile;
+	__m128i * current_profile;
 	__m128i * swap;
 
 	__m128i vMinimums = _mm_set1_epi16(0x8000);
@@ -407,7 +409,7 @@ EXPORT double swps3_alignmentShortSSE( ProfileShort * query, const char * db, in
 	__m128i * loadOpt  = query->loadOpt;
 	__m128i * storeOpt = query->storeOpt;
 	__m128i * rD       = query->rD;
-	__m64   * current_profile;
+	__m128i * current_profile;
 	__m128i * swap;
 
 	__m128i vMinimums = _mm_set1_epi16(0x8000);
@@ -476,8 +478,8 @@ EXPORT double swps3_alignmentShortSSE( ProfileShort * query, const char * db, in
 			/* load the current profile */
 			/*vProfile = _mm_movpi64_epi64(current_profile[i]);*/
 			/*vProfile = _mm_loadl_epi64((__m128i*)(current_profile+i));*/
-			__asm__("movq (%1),%0" : "=x" (vProfile) : "r" (current_profile+i));
-			vProfile = _mm_unpacklo_epi8(vProfile, _mm_xor_si128(vProfile,vProfile));
+			__asm__("MOVDQA (%1),%0" : "=x" (vProfile) : "r" (current_profile+i));
+			/*vProfile = _mm_unpacklo_epi16(vProfile, _mm_xor_si128(vProfile,vProfile));*/
 			vProfile = _mm_subs_epi16(vProfile, vBias);
 
 			/* add the profile the prev. opt */

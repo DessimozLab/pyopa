@@ -44,7 +44,7 @@ typedef struct{
 	u_int8_t data[1];
 } ProfileByte;
 
-ProfileByte * swps3_createProfileByteSSE( const char * query, int queryLen, SBMatrix matrix );
+ProfileByte * swps3_createProfileByteSSE( const char * query, int queryLen, BMatrix matrix );
 double swps3_alignmentByteSSE( ProfileByte * query, const char * db, int dbLen, Options * options );
 void swps3_freeProfileByteSSE( ProfileByte * profile );
 

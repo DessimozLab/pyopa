@@ -94,7 +94,7 @@ EXPORT DMatrix swps3_readDMatrix( char * filename ){
 	return (DMatrix)dmatrix;
 }
 
-EXPORT SBMatrix swps3_readSBMatrix( char * filename ){
+EXPORT BMatrix swps3_readSBMatrix( char * filename ){
 	FILE * fp;
 	int i;
 	char line[ 1024 ];
@@ -140,10 +140,10 @@ EXPORT SBMatrix swps3_readSBMatrix( char * filename ){
 		}
 	}
 	fclose( fp );
-	return (SBMatrix)sbmatrix;
+	return (BMatrix)sbmatrix;
 }
 
-EXPORT SBMatrix swps3_convertMatrixD2B( double factor ) {
+EXPORT BMatrix swps3_convertMatrixD2B( double factor ) {
 	int i,j;
 	for (i=0; i<MATRIX_DIM; i++)  {
 		for(j=0; j<MATRIX_DIM; j++) {
@@ -154,7 +154,7 @@ EXPORT SBMatrix swps3_convertMatrixD2B( double factor ) {
 				dmatrix[i][j] = (int8_t)val;
 		}
 	}
-	return (SBMatrix)sbmatrix;
+	return (BMatrix)sbmatrix;
 }
 
 EXPORT double swps3_factorFromThreshold( double threshold, double singleGapCost ) {

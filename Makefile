@@ -1,7 +1,7 @@
 # make the Smith-Watherman for SSE2
 #
 
-CFLAGS  ?= -Wall -Wextra -O666 -msse3 -ansi -g3 -fPIC -fvisibility=hidden
+CFLAGS  ?= -Wall -Wextra -O666 -msse3 -ansi -O0 -g3 -fPIC -fvisibility=hidden
 #CFLAGS  ?= -Wall -Wextra -Werror -O666 -msse2 -ansi -g3 -fPIC -fvisibility=hidden
 DEFS    ?= -DHAVE_SYSCONF_NPROCESSORS -DHAVE_MALLOC_H -DPY_DEBUG
 LDFLAGS  = 

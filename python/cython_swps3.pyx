@@ -28,10 +28,9 @@ cpdef double swps3_alignByte(np.ndarray[np.int8_t,ndim=2] matrix, const char *s1
 #
 # In addition, the gapOpen, gapExt, and the Matrix should also be scaled by a factor of SIGNED_SHORT_MAX / THRESHOLD
 # The returned double is NOT scaled back by the factor, so a scaleback is necessary
-cpdef double swps3_alignShort(np.ndarray[np.int8_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
-    #TODO this might not work correctly because C only contains byte matrix implementation???
-    #TODO the matrix should not be casted to int8
-    return cython_swps3.python_alignShort(<signed char*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
+cpdef double swps3_alignShort(np.ndarray[np.int16_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
+    #TODO: verify linear alignment, when gapOpen >= gapExt
+    return cython_swps3.python_alignShort(<signed short*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
 
 
 def alignScalar(s1, s2, env):
@@ -51,10 +50,8 @@ def normalizedAlignByte(s1, s2, env):
     return alignByte(normalizeString(s1), normalizeString(s2), env)
 
 
-#TODO should not transform into int8
 def alignShort(s1, s2, env):
-    tmp = env.int16_Matrix.astype(np.int8)
-    ret = swps3_alignShort(tmp, s1, len(s1), s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
+    ret = swps3_alignShort(env.int16_Matrix, s1, len(s1), s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
     return scaleBackFromShort(ret, env.shortFactor())
 
 def normalizedAlignShort(s1, s2, env):
@@ -109,7 +106,7 @@ def readAlignmentEnvironments(loc):
     return ret
 
 
-#TODO this is linear for TESTING only
+#TODO this is linear, for TESTING only
 def binaryAlign(environments, s1, s2):
     minId = 0
     maxId = len(environments) - 1
@@ -150,7 +147,7 @@ def alignMatrix16Byte(matrix):
 
 class AlignmentEnvironment:
     def __init__(self):
-        self.columns = "ARNDCQEGHILKMFPSTWYV"
+        self.columns = "ARNDCQEGHILKMFPSTWYVX"
         self.gapOpen = 0.0
         self.gapExt = 0.0
         self.threshold = 85.0

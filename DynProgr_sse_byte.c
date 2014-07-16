@@ -37,7 +37,7 @@
 /**
  *  Creates a profile with unsigned 8 bit integers
  */
-EXPORT ProfileByte * swps3_createProfileByteSSE( const char * query, int queryLen, SBMatrix matrix ){
+EXPORT ProfileByte * swps3_createProfileByteSSE( const char * query, int queryLen, BMatrix matrix ){
 	int segLen  = (queryLen+15)/16;
 	int i,j,k;
 	int bias = 0;

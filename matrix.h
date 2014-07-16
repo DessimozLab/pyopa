@@ -33,12 +33,13 @@
 #include "swps3.h"
 #include <sys/types.h>
 
-typedef int8_t * SBMatrix;
+typedef int8_t * BMatrix;
+typedef int16_t * SMatrix;
 typedef double * DMatrix;
 
 DMatrix swps3_readDMatrix( char * filename );
-SBMatrix swps3_readSBMatrix( char * filename );
-SBMatrix swps3_convertMatrixD2SB( double factor );
+BMatrix swps3_readSBMatrix( char * filename );
+BMatrix swps3_convertMatrixD2SB( double factor );
 double swps3_factorFromThreshold( double threshold, double singleGapCost );
 
 #endif /* MATRIX_H */

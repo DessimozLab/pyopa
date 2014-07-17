@@ -40,13 +40,9 @@ print cython_swps3.normalizedAlignScalar(s7, s8, x)
 #print cython_swps3.normalizedAlignByte(s1, s2, x)
 print cython_swps3.normalizedAlignShort(s8, s8, x)
 
-x.int16_gapOpen = -1;
-x.int16_gapExt  = -2;
 print cython_swps3.normalizedAlignByte('ADRIAN', 'ADRIAS', x)
 
 print cython_swps3.normalizedAlignByte(b1, b2, x)
-
-print x.int8_gapOpen
 
 #print "int16: GapOpen = %f, GapExt = %f, Threshold = %f" % (x.int16_gapOpen, x.int16_gapExt, x.threshold)
 #print x.int16_Matrix
@@ -62,3 +58,14 @@ print x.int8_gapOpen
 #envs = cython_swps3.readAlignmentEnvironments('/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/python/matrices')
 
 #print cython_swps3.binaryAlignNormalized(envs, s1, s2)
+
+prof = cython_swps3.Profile()
+prof.createProfileByte(cython_swps3.normalizeString(s1), x.int8_Matrix)
+prof.createProfileShort(cython_swps3.normalizeString(s1), x.int16_Matrix)
+
+print "Prof alignment"
+print prof.alignShortProfile(cython_swps3.normalizeString(s2), x)
+print prof.alignByteProfile(cython_swps3.normalizeString(s2), x)
+
+prof.createProfileByte(cython_swps3.normalizeString(s2), x.int8_Matrix)
+print prof.alignByteProfile(cython_swps3.normalizeString(s1), x)

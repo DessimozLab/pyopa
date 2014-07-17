@@ -8,61 +8,6 @@ import math
 import os
 import fnmatch
 
-#This function expects "normalized" byte arrays as input parameters, which means that 'A' should be normalized to 0
-# 'B' to 1, 'C' to 2 etc... and by 0, 1, 2 NOT character '0', '1', '2' is meant
-cpdef double swps3_alignScalar(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
-    return cython_swps3.python_alignScalar(<double*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
-
-
-#This function expects "normalized" byte arrays as input parameters, which means that 'A' should be normalized to 0
-# 'B' to 1, 'C' to 2 etc... and by 0, 1, 2 NOT character '0', '1', '2' is meant
-#
-# In addition, the gapOpen, gapExt, and the Matrix should also be scaled by a factor of SIGNED_CHAR_MAX / THRESHOLD
-# The returned double is NOT scaled back by the factor, so a scaleback is necessary
-cpdef double swps3_alignByte(np.ndarray[np.int8_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
-    return cython_swps3.python_alignByte(<signed char*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
-
-
-#This function expects "normalized" byte arrays as input parameters, which means that 'A' should be normalized to 0
-# 'B' to 1, 'C' to 2 etc... and by 0, 1, 2 NOT character '0', '1', '2' is meant
-#
-# In addition, the gapOpen, gapExt, and the Matrix should also be scaled by a factor of SIGNED_SHORT_MAX / THRESHOLD
-# The returned double is NOT scaled back by the factor, so a scaleback is necessary
-cpdef double swps3_alignShort(np.ndarray[np.int16_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
-    #TODO: verify linear alignment, when gapOpen >= gapExt
-    return cython_swps3.python_alignShort(<signed short*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
-
-
-def alignScalar(s1, s2, env):
-    return swps3_alignScalar(env.float64_Matrix, s1, len(s1), s2, len(s2), env.gapOpen, env.gapExt, env.threshold)
-
-
-def normalizedAlignScalar(s1, s2, env):
-    return alignScalar(normalizeString(s1), normalizeString(s2), env)
-
-
-def alignByte(s1, s2, env):
-    ret = swps3_alignByte(env.int8_Matrix, s1, len(s1), s2, len(s2), env.int8_gapOpen, env.int8_gapExt, env.threshold)
-    #do not scale back DBL_MAX
-    if ret >= 1.7976931348623157e+308:
-        return ret
-    return scaleBackFromByte(ret, env.byteFactor())
-
-
-def normalizedAlignByte(s1, s2, env):
-    return alignByte(normalizeString(s1), normalizeString(s2), env)
-
-
-def alignShort(s1, s2, env):
-    ret = swps3_alignShort(env.int16_Matrix, s1, len(s1), s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
-    #do not scale back DBL_MAX
-    if ret >= 1.7976931348623157e+308:
-        return ret
-    return scaleBackFromShort(ret, env.shortFactor())
-
-def normalizedAlignShort(s1, s2, env):
-    return alignShort(normalizeString(s1), normalizeString(s2), env)
-
 
 def normalizeString(s):
     ret = ""
@@ -112,43 +57,53 @@ def readAlignmentEnvironments(loc):
     return ret
 
 
-#TODO this is linear, for TESTING only
-def binaryAlign(environments, s1, s2):
-    minId = 0
-    maxId = len(environments) - 1
-
-    maxScore = alignScalar(s1, s2, environments[0]);
-
-    for env in environments:
-        tmp = alignScalar(s1, s2, env)
-
-        if tmp > maxScore:
-            maxScore = tmp
-
-    return maxScore
+cdef class Profile:
+    cdef cython_swps3.ProfileByte* _c_profileByte
+    cdef cython_swps3.ProfileShort* _c_profileShort
 
 
-def binaryAlignNormalized(environments, s1, s2):
-    return binaryAlign(environments, normalizeString(s1), normalizeString(s2))
+    def __cinit__(self):
+        self._c_profileByte = NULL
+        self._c_profileShort = NULL
 
 
-#TODO check the correctness of this!
-def alignMatrix16Byte(matrix):
-    if len(matrix.shape) != 2:
-        print "The dimension of the matrix must be 2!"
-        return matrix
+    def __dealloc__(self):
+        if self._c_profileByte is not NULL:
+            cython_swps3.python_freeProfileByteSSE(self._c_profileByte)
 
-    n = matrix.shape[0]
-    m = matrix.shape[1]
+        if self._c_profileShort is not NULL:
+            cython_swps3.python_freeProfileShortSSE(self._c_profileShort)
 
-    dtype = matrix.dtype
-    nbytes = n * m * dtype.itemsize
-    buf = np.empty(nbytes + 16, dtype=np.uint8)
-    start_index = -buf.ctypes.data % 16
-    a = buf[start_index:start_index + nbytes].view(dtype).reshape(n, m)
 
-    np.copyto(a, matrix)
-    return a
+    cpdef createProfileByte(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
+        if self._c_profileByte is not NULL:
+            cython_swps3.python_freeProfileByteSSE(self._c_profileByte)
+
+        self._c_profileByte = cython_swps3.python_createByteProfileSSE(query, len(query), <signed char*> matrix.data)
+
+
+    cpdef createProfileShort(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
+        if self._c_profileShort is not NULL:
+            cython_swps3.python_freeProfileShortSSE(self._c_profileShort)
+
+        self._c_profileShort = cython_swps3.python_createShortProfileSSE(query, len(query), <signed short*> matrix.data)
+
+
+    cpdef alignByteProfile(self, s2, env):
+        ret = cython_swps3.python_alignByteProfileSSE(<ProfileByte*> self._c_profileByte, s2, len(s2), env.int8_gapOpen, env.int8_gapExt, env.threshold)
+        #do not scale back DBL_MAX
+        if ret >= 1.7976931348623157e+308:
+            return ret
+        return scaleBackFromByte(ret, env.byteFactor())
+
+
+    cpdef alignShortProfile(self, s2, env):
+        ret = cython_swps3.python_alignShortProfileSSE(<ProfileShort*> self._c_profileShort, s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
+        #do not scale back DBL_MAX
+        if ret >= 1.7976931348623157e+308:
+            return ret
+        return scaleBackFromShort(ret, env.shortFactor())
+
 
 
 class AlignmentEnvironment:

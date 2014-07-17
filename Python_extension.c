@@ -20,14 +20,9 @@ double python_alignScalar(DMatrix matrix, const char *s1, int ls1, const char *s
 	options.gapExt = gapExt;
 	options.threshold = threshold;
 
-	if(((unsigned long)matrix) % 16 != 0) {
-		printf("Matrix has to be aligned to 16 bytes!\n");
-		return 0.0;
-	}
-
 #ifdef PY_DEBUG
 	printf("SCALAR aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapOpen, gapExt, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
+			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
 	int i, j;
 	for (i = 0; i < 26; ++i) {
 		printf("[");
@@ -47,14 +42,9 @@ double python_alignByte(BMatrix matrix, const char *s1, int ls1, const char *s2,
 	options.gapExt = gapExt;
 	options.threshold = threshold;
 
-	if(((unsigned long)matrix) % 16 != 0) {
-		printf("Matrix has to be aligned to 16 bytes!\n");
-		return 0.0;
-	}
-
 #ifdef PY_DEBUG
 	printf("BYTE aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapOpen, gapExt, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
+			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
 	int i, j;
 	for (i = 0; i < 26; ++i) {
 		printf("[");
@@ -77,14 +67,9 @@ double python_alignShort(SMatrix matrix, const char *s1, int ls1, const char *s2
 	options.gapExt = gapExt;
 	options.threshold = threshold;
 
-	if(((unsigned long)matrix) % 16 != 0) {
-		printf("Matrix has to be aligned to 16 bytes!\n");
-		return 0.0;
-	}
-
 #ifdef PY_DEBUG
 	printf("SHORT aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapOpen, gapExt, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
+			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
 	int i, j;
 	for (i = 0; i < 26; ++i) {
 		printf("[");

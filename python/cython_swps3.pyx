@@ -43,6 +43,9 @@ def normalizedAlignScalar(s1, s2, env):
 
 def alignByte(s1, s2, env):
     ret = swps3_alignByte(env.int8_Matrix, s1, len(s1), s2, len(s2), env.int8_gapOpen, env.int8_gapExt, env.threshold)
+    #do not scale back DBL_MAX
+    if ret >= 1.7976931348623157e+308:
+        return ret
     return scaleBackFromByte(ret, env.byteFactor())
 
 
@@ -52,6 +55,9 @@ def normalizedAlignByte(s1, s2, env):
 
 def alignShort(s1, s2, env):
     ret = swps3_alignShort(env.int16_Matrix, s1, len(s1), s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
+    #do not scale back DBL_MAX
+    if ret >= 1.7976931348623157e+308:
+        return ret
     return scaleBackFromShort(ret, env.shortFactor())
 
 def normalizedAlignShort(s1, s2, env):
@@ -180,18 +186,17 @@ class AlignmentEnvironment:
                 extendedMatrix[ord(self.columns[i]) - ord('A')][ord(self.columns[j]) - ord('A')] = compactMatrix[i][j]
 
 
-        #TODO verify the correctness of the 16 byte alignment
         #align NumPy array pointer to 16 byte
-        self.float64_Matrix = alignMatrix16Byte(np.array(extendedMatrix, dtype=np.float64))
+        self.float64_Matrix = np.array(extendedMatrix, dtype=np.float64)
 
         #create the int8 and int16 matrix from the double matrix by using a simple scaling
         factor = self.byteFactor()
-        self.int8_Matrix = alignMatrix16Byte(np.vectorize(lambda x: scaleToByte(x, factor))(self.float64_Matrix ).astype(np.int8))
+        self.int8_Matrix = np.vectorize(lambda x: scaleToByte(x, factor))(self.float64_Matrix ).astype(np.int8)
         self.int8_gapOpen =  scaleToByte(self.gapOpen, factor)
         self.int8_gapExt =  scaleToByte(self.gapExt, factor)
 
         factor = self.shortFactor()
-        self.int16_Matrix = alignMatrix16Byte(np.vectorize(lambda x: scaleToShort(x, factor))(self.float64_Matrix ).astype(np.int16))
+        self.int16_Matrix = np.vectorize(lambda x: scaleToShort(x, factor))(self.float64_Matrix ).astype(np.int16)
         self.int16_gapOpen =  scaleToShort(self.gapOpen, factor)
         self.int16_gapExt =  scaleToShort(self.gapExt, factor)
 

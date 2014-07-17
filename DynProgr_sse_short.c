@@ -80,7 +80,7 @@ EXPORT double swps3_alignmentShortSSE_lin( ProfileShort * query, const char * db
 	 *
 	 * Michael Farrar, Bioinformatics, 23(2), pp. 156-161, 2007
 	 **********************************************************************/
-#ifndef DEBUG_PY
+#ifdef PY_DEBUG
 	printf("Linear alignment!\n");
 #endif
 
@@ -203,8 +203,9 @@ shortcut:
 	vMaxScore = _mm_max_epi16(vMaxScore, _mm_srli_si128(vMaxScore, 4));
 	vMaxScore = _mm_max_epi16(vMaxScore, _mm_srli_si128(vMaxScore, 2));
 	MaxScore = _mm_extract_epi16(vMaxScore,0);
-	if (MaxScore == 0x7fff)
+	if (MaxScore == 0x7fff) {
 		return DBL_MAX;
+	}
 	return (double)(u_int16_t)(MaxScore-(u_int16_t)0x8000);
 }
 
@@ -538,8 +539,9 @@ shortcut:
 	vMaxScore = _mm_max_epi16(vMaxScore, _mm_srli_si128(vMaxScore, 4));
 	vMaxScore = _mm_max_epi16(vMaxScore, _mm_srli_si128(vMaxScore, 2));
 	MaxScore = _mm_extract_epi16(vMaxScore,0);
-	if (MaxScore == 0x7fff)
+	if (MaxScore == 0x7fff) {
 		return DBL_MAX;
+	}
 	return (double)(u_int16_t)(MaxScore-(u_int16_t)0x8000);
 }
 

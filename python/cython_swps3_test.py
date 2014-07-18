@@ -36,13 +36,8 @@ print cython_swps3.normalizedAlignScalar(s5, s6, x)
 #print cython_swps3.normalizedAlignByte(s5, s6, x)
 print cython_swps3.normalizedAlignShort(s5, s6, x)
 '''
-print cython_swps3.normalizedAlignScalar(s7, s8, x)
-#print cython_swps3.normalizedAlignByte(s1, s2, x)
-print cython_swps3.normalizedAlignShort(s8, s8, x)
 
-print cython_swps3.normalizedAlignByte('ADRIAN', 'ADRIAS', x)
-
-print cython_swps3.normalizedAlignByte(b1, b2, x)
+#cython_swps3.scaleToByte(20, 30)
 
 #print "int16: GapOpen = %f, GapExt = %f, Threshold = %f" % (x.int16_gapOpen, x.int16_gapExt, x.threshold)
 #print x.int16_Matrix
@@ -59,13 +54,14 @@ print cython_swps3.normalizedAlignByte(b1, b2, x)
 
 #print cython_swps3.binaryAlignNormalized(envs, s1, s2)
 
-prof = cython_swps3.Profile()
-prof.createProfileByte(cython_swps3.normalizeString(s1), x.int8_Matrix)
-prof.createProfileShort(cython_swps3.normalizeString(s1), x.int16_Matrix)
+prof = cython_swps3.AlignmentProfile()
+prof.createProfiles(s1, x)
+#x.int8_Matrix = x.int8_Matrix.reshape(1, 26*26)
 
-print "Prof alignment"
-print prof.alignShortProfile(cython_swps3.normalizeString(s2), x)
-print prof.alignByteProfile(cython_swps3.normalizeString(s2), x)
+print prof.alignShort(s2, x)
+print prof.alignByte(s2, x)
 
-prof.createProfileByte(cython_swps3.normalizeString(s2), x.int8_Matrix)
-print prof.alignByteProfile(cython_swps3.normalizeString(s1), x)
+prof.createProfileByte(s2, x.int8_Matrix)
+print prof.alignByteNormalized(cython_swps3.normalizeString(s1), x)
+print prof.alignByteNormalized(cython_swps3.normalizeString(s5), x)
+print prof.alignByteNormalized(cython_swps3.normalizeString(s6), x)

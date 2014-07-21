@@ -160,5 +160,12 @@ void python_freeProfileShortSSE(ProfileShort* profile) {
 	swps3_freeProfileShortSSE(profile);
 }
 
+double python_alignScalar(DMatrix matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold) {
+	Options options;
+	options.gapOpen = gapOpen;
+	options.gapExt = gapExt;
+	options.threshold = threshold;
 
+	return swps3_alignScalar(matrix, s1, ls1, s2, ls2, &options);
+}
 

@@ -80,18 +80,138 @@ def scaleBack(val, factor):
     return val / factor
 
 
-def readAlignmentEnvironments(loc):
+def readEnvJson(file):
+    """
+    This function is reading an AlignmentEnvironment from a JSON formatted file.
+    :param file: the file from which we want to read the environment
+    :return: the environment
+    """
+
+    env = AlignmentEnvironment()
+
+    with open(file) as data_file:
+        data = json.load(data_file)
+
+    env.gapOpen = data["GapOpen"]
+    env.gapExt = data["GapExt"]
+    env.pam = data["PamDistance"]
+    compactMatrix = data["Scores"]
+
+    #convert the compact matrix into C compatible one by extending it to a 26x26 one
+    extendedMatrix = [[0 for x in xrange(26)] for x in xrange(26)]
+    for i in range(0, len(env.columns)):
+        for j in range(0, len(env.columns)):
+            extendedMatrix[ord(env.columns[i]) - ord('A')][ord(env.columns[j]) - ord('A')] = compactMatrix[i][j]
+
+
+    env.float64_Matrix = np.array(extendedMatrix, dtype=np.float64)
+
+    #create the int8 and int16 matrix from the double matrix by using a simple scaling
+    factor = env.byteFactor()
+    env.int8_Matrix = np.vectorize(lambda x: scaleToByte(x, factor))(env.float64_Matrix ).astype(np.int8)
+    env.int8_gapOpen =  scaleToByte(env.gapOpen, factor)
+    env.int8_gapExt =  scaleToByte(env.gapExt, factor)
+
+    factor = env.shortFactor()
+    env.int16_Matrix = np.vectorize(lambda x: scaleToShort(x, factor))(env.float64_Matrix ).astype(np.int16)
+    env.int16_gapOpen =  scaleToShort(env.gapOpen, factor)
+    env.int16_gapExt =  scaleToShort(env.gapExt, factor)
+
+    return env
+
+
+def readAllEnvJson(loc, ext):
+    """
+    Reads all of the alignment environments from the given directory. The extension of the files must be .dat
+
+    :param loc: the directory where the matrices are stored
+    :return: a list of AlignmentEnvironments sorted by the file name
+    """
     ret = []
     listDir = sorted(os.listdir(loc), key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
 
     for fn in listDir:
         f = os.path.join(loc, fn)
-        if os.path.isfile(f) and fnmatch.fnmatch(f, "*.dat"):
-            tmp = AlignmentEnvironment()
-            tmp.readFromFile(f)
-            ret.append(tmp)
+        if os.path.isfile(f) and fnmatch.fnmatch(f, "*." + ext):
+            ret.append(readEnvJson(f))
 
     return ret
+
+
+def alignShort(s1, s2, file):
+    """
+    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to match
+    sequences and should only be used for testing purposes.
+
+    :param s1: first string of the alignment
+    :param s2: second string of the alignment
+    :param file: file that contains the matrix in JSON format
+    :return: the short estimation of the score
+    """
+    p = AlignmentProfile()
+    e = readEnvJson(file)
+    p.createProfiles(s1, e)
+
+    return p.alignShort(s2, e)
+
+
+def alignByte(s1, s2, file):
+    """
+    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to match
+    sequences and should only be used for testing purposes.
+
+    :param s1: first string of the alignment
+    :param s2: second string of the alignment
+    :param file: file that contains the matrix in JSON format
+    :return: the byte estimation of the score
+    """
+    p = AlignmentProfile()
+    e = readEnvJson(file)
+    p.createProfiles(s1, e)
+
+    return p.alignByte(s2, e)
+
+
+cpdef double alignScalarNormalizedC(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2,
+                               double gapOpen, double gapExt, double threshold):
+    """
+    This is a simple wrapper for the scalar alignment C function.
+    :param matrix: the 26x26 double matrix
+    :param s1: the first string
+    :param ls1: the length of the first string
+    :param s2: the second string
+    :param ls2: the length of the second string
+    :param gapOpen: the gap opening cost
+    :param gapExt: the gap extension cost
+    :param threshold: the threshold used for the calculation (might be ignored)
+    :return: the exact scalar score
+    """
+    return cython_swps3.python_alignScalar(<double*> matrix.data, s1, ls1, s2, ls2, gapOpen, gapExt, threshold)
+
+
+def alignScalarNormalized(s1, s2, env):
+    """
+    Similar to alignScalar but working on normalized strings so more efficient.
+    :param s1: first string
+    :param s2: second string
+    :param env: the AlignmentEnvironment to be used
+    :return: the exact scalar score
+    """
+    return alignScalarNormalizedC(env.float64_Matrix, s1, len(s1), s2, len(s2), env.gapOpen, env.gapExt, env.threshold)
+
+
+def alignScalar(s1, s2, env):
+    """
+    This is a simpler interface to the scalar alignment function written in C by using the AlignmentEnvironment python
+    class. This is less efficient than the alignScalarNormalized version
+    :param s1: first string
+    :param s2: second string
+    :param env: the AlignmentEnvironment to be used
+    :return: the exact scalar score
+    """
+    ns1 = normalizeString(s1)
+    ns2 = normalizeString(s2)
+    return alignScalarNormalized(ns1, ns2, env)
 
 
 cdef class AlignmentProfile:
@@ -180,8 +300,7 @@ cdef class AlignmentProfile:
         ret = cython_swps3.python_alignByteProfileSSE(<ProfileByte*> self._c_profileByte, s2, len(s2),
                                                       env.int8_gapOpen, env.int8_gapExt, env.threshold)
         #do not scale back DBL_MAX
-        #TODO replace this constant with a better solution
-        if ret >= 1.7976931348623157e+308:
+        if ret >= sys.float_info.max:
             return ret
 
         return scaleBack(ret, env.byteFactor())
@@ -199,16 +318,15 @@ cdef class AlignmentProfile:
         ret = cython_swps3.python_alignShortProfileSSE(<ProfileShort*> self._c_profileShort,
                                                        s2, len(s2), env.int16_gapOpen, env.int16_gapExt, env.threshold)
         #do not scale back DBL_MAX
-        #TODO replace this constant with a better solution
-        if ret >= 1.7976931348623157e+308:
+        if ret >= sys.float_info.max:
             return ret
 
         return scaleBack(ret, env.shortFactor())
 
     def alignByte(self, s2, env):
         """
-        Aligns s2 to the profile with byte alignment. This function automatically normalizes the s2 input string. This
-        function is not efficient because we have to transform the input string on every call.
+        Aligns s2 to the profile with byte alignment. This method automatically normalizes the s2 input string. This
+        method is not efficient because we have to transform the input string on every call.
 
         :param s2: the string to which we would like to align the profile (all characters must be in range of A-Z)
         :param env: the AlignmentEnvironment that contains the gap costs and the threshold
@@ -218,8 +336,8 @@ cdef class AlignmentProfile:
 
     def alignShort(self, s2, env):
         """
-        Aligns s2 to the profile with short alignment. This function automatically normalizes the s2 input string. This
-        function is not efficient because we have to transform the input string on every call.
+        Aligns s2 to the profile with short alignment. This method automatically normalizes the s2 input string. This
+        method is not efficient because we have to transform the input string on every call.
 
         :param s2: the string to which we would like to align the profile (all characters must be in range of A-Z)
         :param env: the AlignmentEnvironment that contains the gap costs and the threshold
@@ -229,56 +347,43 @@ cdef class AlignmentProfile:
 
 
 class AlignmentEnvironment:
+    """
+    This class stores all the information that is necessary to conduct an alignment (including the matrix and the gap
+    costs). It does the necessary transformations such as scaling up the matrix and gap costs and extending the matrix
+    to a 26x26 one, which is needed for scalar and byte alignments. Although you can manually create the necessary
+    matrices and gap costs it is highly recommended to use this class for alignments.
+    """
     def __init__(self):
-        self.columns = "ARNDCQEGHILKMFPSTWYVX"
+        #the PAM distance associated with the matrices
+        self.pam = 0
+
+        #The columns of the compressed matrix. The compressed matrix to be extended to a 26x26 matrix since the profile
+        #generation requires a 26x26 matrix
+        self.columns = "ARNDCQEGHILKMFPSTWYV"
+        self.threshold = 85.0
+
+        #This gapOpen/Ext and matrix is used by the scalar alignment function. These are directly passed to the C core
         self.gapOpen = 0.0
         self.gapExt = 0.0
-        self.threshold = 85.0
         self.float64_Matrix = np.ndarray(shape=(26, 26), dtype=np.float64)
-        self.matrixId = ""
 
+        #This gapOpen/Ext and matrix is used by the short alignment function. These are directly passed to the C core
+        #and calculated from the scalar matrix and gap costs (by a simple scaling)
         self.int16_Matrix = np.ndarray(shape=(26, 26), dtype=np.int16)
         self.int16_gapOpen = 0.0
         self.int16_gapExt = 0.0
 
+        #This gapOpen/Ext and matrix is used by the byte alignment function. These are directly passed to the C core
+        #and calculated from the scalar matrix and gap costs (by a simple scaling)
         self.int8_Matrix = np.ndarray(shape=(26, 26), dtype=np.int8)
         self.int8_gapOpen = 0.0
         self.int8_gapExt = 0.0
 
 
-    def readFromFile(self, file):
-        self.matrixId = os.path.splitext(os.path.basename(file))[0]
-
-        with open(file) as data_file:    
-            data = json.load(data_file)
-
-        self.gapOpen = data["GapOpen"]
-        self.gapExt = data["GapExt"]
-        compactMatrix = data["Scores"]
-
-        #convert the compact matrix into C compatible one
-        extendedMatrix = [[0 for x in xrange(26)] for x in xrange(26)]
-        for i in range(0, len(self.columns)):        
-            for j in range(0, len(self.columns)):
-                extendedMatrix[ord(self.columns[i]) - ord('A')][ord(self.columns[j]) - ord('A')] = compactMatrix[i][j]
-
-
-        #align NumPy array pointer to 16 byte
-        self.float64_Matrix = np.array(extendedMatrix, dtype=np.float64)
-
-        #create the int8 and int16 matrix from the double matrix by using a simple scaling
-        factor = self.byteFactor()
-        self.int8_Matrix = np.vectorize(lambda x: scaleToByte(x, factor))(self.float64_Matrix ).astype(np.int8)
-        self.int8_gapOpen =  scaleToByte(self.gapOpen, factor)
-        self.int8_gapExt =  scaleToByte(self.gapExt, factor)
-
-        factor = self.shortFactor()
-        self.int16_Matrix = np.vectorize(lambda x: scaleToShort(x, factor))(self.float64_Matrix ).astype(np.int16)
-        self.int16_gapOpen =  scaleToShort(self.gapOpen, factor)
-        self.int16_gapExt =  scaleToShort(self.gapExt, factor)
-
-
+    #calculates the byte scaling factor
     def byteFactor(self):
+
+        #This is copied from the C code and I have no idea why we use this at the byte version but not at the short
         absMin = abs(np.amin(self.float64_Matrix))
         return 255.0/(self.threshold + absMin)
 

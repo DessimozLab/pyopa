@@ -1,8 +1,7 @@
 
 import cython_swps3
 
-x = cython_swps3.AlignmentEnvironment()
-x.readFromFile('516.dat')
+x = cython_swps3.readEnvJson('516.dat')
 
 #39.57457847	39.54408533	45.34733903	288.dat
 s1 = 'KQTASGGRPLGNMPAYTPLYENVGTSIFSKSQKEDALYRIKYEYGNGTQHATMTGGINRAATVGARPAVRPETKVKIYHDLLICYGLTVVGMEPEDIQLCASSFKYFPEYYFDYQESAINEFMCFGKIKRHSRHRYVLAGWRVATHWVITQTLNELERPVQAIRLETISSSQELIFEVLNPFNIRIRFYDHTKHRHRFGCTRLDMKALVRLLLQFAVLGSTAKDIQRSPINTDLALKLAERRNLNPNVLK'
@@ -53,10 +52,11 @@ print cython_swps3.normalizedAlignShort(s5, s6, x)
 #envs = cython_swps3.readAlignmentEnvironments('/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/python/matrices')
 
 #print cython_swps3.binaryAlignNormalized(envs, s1, s2)
-
+"""
 prof = cython_swps3.AlignmentProfile()
 prof.createProfiles(s1, x)
 #x.int8_Matrix = x.int8_Matrix.reshape(1, 26*26)
+
 
 print prof.alignShort(s2, x)
 print prof.alignByte(s2, x)
@@ -65,3 +65,10 @@ prof.createProfileByte(s2, x.int8_Matrix)
 print prof.alignByteNormalized(cython_swps3.normalizeString(s1), x)
 print prof.alignByteNormalized(cython_swps3.normalizeString(s5), x)
 print prof.alignByteNormalized(cython_swps3.normalizeString(s6), x)
+
+prof.createProfileByte(s7, x.int8_Matrix)
+print prof.alignByte(s8, x)
+"""
+print cython_swps3.alignShort(s1, s2, '516.dat')
+print cython_swps3.alignScalar(s1, s2, x)
+#print cython_swps3.readAllEnvJson('matrices', 'dat')

@@ -140,7 +140,7 @@ def readAllEnvJson(loc, ext):
 
 def alignShort(s1, s2, file):
     """
-    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to match
+    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
@@ -157,7 +157,7 @@ def alignShort(s1, s2, file):
 
 def alignByte(s1, s2, file):
     """
-    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to match
+    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
@@ -172,8 +172,8 @@ def alignByte(s1, s2, file):
     return p.alignByte(s2, e)
 
 
-cpdef double alignScalarNormalizedC(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2, int ls2,
-                               double gapOpen, double gapExt, double threshold):
+cpdef double alignScalarNormalizedC(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1,
+                                    const char *s2, int ls2, double gapOpen, double gapExt, double threshold):
     """
     This is a simple wrapper for the scalar alignment C function.
     :param matrix: the 26x26 double matrix
@@ -250,9 +250,19 @@ cdef class AlignmentProfile:
         self.createProfileShort(query, env.int16_Matrix)
 
 
-    cpdef createProfileByte(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
+    def createProfilesNormalized(self, query, env):
         """
-        Creates a byte profile from the given query and matrix. The query string must not be normalized but the matrix
+        Creates the byte and the short profile by using the environment's short and byte matrices
+        :param query: the query from which we want to create the profiles
+        :param env: the environment that contains the scaled byte and short matrices
+        """
+        self.createProfileByteNormalized(query, env.int8_Matrix)
+        self.createProfileShortNormalized(query, env.int16_Matrix)
+
+
+    cpdef createProfileByteNormalized(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
+        """
+        Creates a byte profile from the given query and matrix. The query string must be normalized but the matrix
         must be scaled to the byte version.
 
         :param query: the query string which we want to use for the profile
@@ -265,13 +275,25 @@ cdef class AlignmentProfile:
         if self._c_profileByte is not NULL:
             cython_swps3.python_freeProfileByteSSE(self._c_profileByte)
 
-        q = normalizeString(query)
-        self._c_profileByte = cython_swps3.python_createByteProfileSSE(q, len(query), <signed char*> matrix.data)
+        self._c_profileByte = cython_swps3.python_createByteProfileSSE(query, len(query), <signed char*> matrix.data)
 
 
-    cpdef createProfileShort(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
+    def createProfileByte(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
         """
-        Creates a short profile from the given query and matrix. The query string must not be normalized but the matrix
+        Creates a byte profile from the given query and matrix. The query string must not be normalized but the matrix
+        must be scaled to the byte version.
+
+        :param query: the query string which we want to use for the profile
+        :param matrix: the matrix which we want to use for the profile (must be scaled to bytes)
+        """
+
+        q = normalizeString(query)
+        self.createProfileByteNormalized(q, matrix)
+
+
+    cpdef createProfileShortNormalized(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
+        """
+        Creates a short profile from the given query and matrix. The query string must be normalized but the matrix
         must be scaled to the short version.
 
         :param query: the query string which we want to use for the profile
@@ -284,8 +306,20 @@ cdef class AlignmentProfile:
         if self._c_profileShort is not NULL:
             cython_swps3.python_freeProfileShortSSE(self._c_profileShort)
 
+        self._c_profileShort = cython_swps3.python_createShortProfileSSE(query, len(query), <signed short*> matrix.data)
+
+
+    def createProfileShort(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
+        """
+        Creates a short profile from the given query and matrix. The query string must not be normalized but the matrix
+        must be scaled to the short version.
+
+        :param query: the query string which we want to use for the profile
+        :param matrix: the matrix which we want to use for the profile (must be scaled to shorts)
+        """
+
         q = normalizeString(query)
-        self._c_profileShort = cython_swps3.python_createShortProfileSSE(q, len(query), <signed short*> matrix.data)
+        self.createProfileByteNormalized(q, matrix)
 
 
     cpdef alignByteNormalized(self, s2, env):

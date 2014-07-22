@@ -46,6 +46,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/select.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
@@ -59,79 +60,89 @@ void normalizeSequence(char* seq, int seqLen) {
 }
 
 int main( int argc, char * argv[] ){
-
+	/* TODO this main function is not intended to work correctly (the matrices are not even initialized) */
 	srand(time(NULL));
+
+	int i, j;
 
 	int8_t bMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
 	int16_t sMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
 
-	int i, j, k;
+	const char* loc = "python/test/seq.test";
 
-	double gapOpen = -20.0;
-	double gapExtend = -2.0;
+	FILE *fp;
+	fp = fopen(loc,"r");
 
-	char* query;
-	char* db;
+	int ch, number_of_lines = 0;
 
-	for(i = 0; i < 1000000; ++i) {
+	do
+	{
+	    ch = fgetc(fp);
+	    if(ch == '\n')
+	    	number_of_lines++;
+	} while (ch != EOF);
 
-		for (j = 0; j < MATRIX_DIM; ++j) {
-			for (k = 0; k < MATRIX_DIM; ++k) {
-				int8_t val = (rand() % 256 - 128) / 30;
-				sMatrix[k + j * MATRIX_DIM] = val ;
-				bMatrix[k + j * MATRIX_DIM] = val;
-			}
-		}
+	char** sequences = (char**) malloc(number_of_lines * sizeof(char*));
+	int* lens = (int*) malloc(number_of_lines * sizeof(int));
 
-		int ql = rand() % 5000;
-		int dbl = rand() % 5000;
-
-		query = (char*) malloc((ql + 1) * sizeof(char));
-		db = (char*) malloc((dbl + 1) * sizeof(char));
-
-		for (k = 0; k < ql; ++k) {
-			query[k] = 'A' + rand() % 26;
-		}
-
-		for (k = 0; k < dbl; ++k) {
-			db[k] = 'A' + rand() % 26;
-		}
-
-		query[ql] = '\0';
-		db[dbl] = '\0';
-
-		/*printf("Aligning: %s\n to: %s\n", query, db);*/
-
-		int queryLen = strlen(query);
-		int dbLen = strlen(db);
-		normalizeSequence(query, queryLen);
-		normalizeSequence(db, dbLen);
-		Options options;
-		options.threshold = 120.0;
-		options.gapOpen = gapOpen;
-		options.gapExt = gapExtend;
-
-		ProfileByte  * profileByte = swps3_createProfileByteSSE( query, queryLen, bMatrix );
-		ProfileShort * profileShort = swps3_createProfileShortSSE( query, queryLen, sMatrix );
-
-		double byteScore = swps3_alignmentByteSSE( profileByte, db, dbLen, &options);
-		double shortScore = swps3_alignmentShortSSE( profileShort, db, dbLen, &options );
-
-		if(byteScore != shortScore && byteScore != DBL_MAX) {
-			printf("ERROR!");
-			exit(-1);
-		}
-
-		/*printf("SSE score BYTE: %f\n", byteScore);
-		printf("SSE score SHORT %f\n", shortScore);*/
-		/*printf("Scalar score: %f\n\n", swps3_alignScalar( dmatrix, query[i], queryLen, db[i], dbLen, &options));*/
-
-		swps3_freeProfileByteSSE(profileByte);
-		swps3_freeProfileShortSSE(profileShort);
-		free(query);
-		free(db);
-
+	for (i = 0; i < number_of_lines; ++i) {
+		sequences[i] = (char*) malloc(20000 * sizeof(char*));
 	}
+
+	fseek (fp, 9, SEEK_SET);
+
+	i = 0;
+	while(fgets(sequences[i], 20000, fp) != NULL)
+	{
+		/*replace new line with end of string*/
+		sequences[i][strlen(sequences[i])-1] = '\0';
+		lens[i] = strlen(sequences[i]);
+		normalizeSequence(sequences[i], lens[i]);
+		++i;
+	}
+
+	fclose(fp);
+
+	Options options;
+	options.threshold = 85.0;
+	options.gapOpen = -20;
+	options.gapExt = -2;
+
+	double* res = (double*) malloc((number_of_lines - 1) * number_of_lines / 2 * sizeof(double));
+
+	int resSize = 0;
+
+	float millis = 0.0;
+	unsigned long start, end;
+
+	start = clock();
+
+	for (i = 0; i < number_of_lines; ++i) {
+		ProfileShort* profile = swps3_createProfileShortSSE(sequences[i], lens[i], sMatrix);
+		for (j = i + 1; j < number_of_lines; ++j) {
+			res[resSize] = swps3_alignmentShortSSE(profile, sequences[j], lens[j], &options);
+			++resSize;
+		}
+
+		swps3_freeProfileShortSSE(profile);
+	}
+
+	end = clock();
+
+	millis = (end - start) / 1000.0;
+
+	printf("A total of %d alignments (all to all with %d) have been done in %.3fs", resSize, number_of_lines, millis/1000.0);
+
+
+	/*for (i = 0; i < resSize; ++i) {
+		printf("%.3f\n", res[i]);
+	}*/
+
+	for (i = 0; i < number_of_lines; ++i) {
+		free(sequences[i]);
+	}
+	free(sequences);
+	free(res);
 
 	return 0;
 }

@@ -28,4 +28,5 @@ def test_func():
     print "A total of %d alignments have been done in %.3fs" % (len(result), elapsed)
 
 
-profile.run('test_func(); print')
+#profile.run('test_func(); print')
+test_func()

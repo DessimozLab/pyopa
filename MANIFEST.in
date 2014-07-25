@@ -1,0 +1,4 @@
+include setup.py cython_swps3.pxd cython_swps3.pyx
+include c_source/Python_extension.c c_source/DynProgr_sse_short.c c_source/DynProgr_sse_byte.c c_source/DynProgr_scalar.c
+include c_source/Python_extension.h c_source/DynProgr_sse_short.h c_source/DynProgr_sse_byte.h c_source/DynProgr_scalar.h c_source/matrix.h c_source/debug.h c_source/swps3.h
+exclude cython_swps3.c

@@ -13,79 +13,49 @@
 #include "DynProgr_sse_byte.h"
 #include "DynProgr_sse_short.h"
 
-/*
-double python_alignScalar(DMatrix matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold) {
-	Options options;
-	options.gapOpen = gapOpen;
-	options.gapExt = gapExt;
-	options.threshold = threshold;
+char* denormalize(const char* str, int len) {
+	char* ret = (char*) malloc((len + 1)* sizeof(char));
+	int i;
 
-#ifdef PY_DEBUG
-	printf("SCALAR aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
-	int i, j;
-	for (i = 0; i < 26; ++i) {
-		printf("[");
-		for (j = 0; j < 26; ++j) {
-			printf("%+.2f, ", matrix[i * 26 + j]);
-		}
-		printf("]\n");
+	for (i = 0; i < len; ++i) {
+		ret[i] = 'A' + str[i];
 	}
-#endif
 
-	return swps3_alignScalar(matrix, s1, ls1, s2, ls2, &options);
+	ret[len] = '\0';
+
+	return ret;
 }
 
-double python_alignByte(BMatrix matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold) {
-	Options options;
-	options.gapOpen = gapOpen;
-	options.gapExt = gapExt;
-	options.threshold = threshold;
-
-#ifdef PY_DEBUG
-	printf("BYTE aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
-	int i, j;
-	for (i = 0; i < 26; ++i) {
-		printf("[");
-		for (j = 0; j < 26; ++j) {
-			printf("%+d, ", matrix[i * 26 + j]);
-		}
-		printf("]\n");
-	}
-#endif
-
-	ProfileByte  * profileByte = swps3_createProfileByteSSE(s1, ls1, matrix);
-	double score = swps3_alignmentByteSSE(profileByte, s2, ls2, &options);
-	swps3_freeProfileByteSSE(profileByte);
-
-	return score;
+void debug_alignment(char* name, void* profile, const char* s2, int ls2, Options* options) {
+	char* dns2 = denormalize(s2, ls2);
+	printf("Aligning %s: profile = %lu, s2 = %s, len(s2) = %d, gapOpen = %f, gapExt = %f, threshold = %f\n",
+				name, (unsigned long)profile, dns2, ls2, options->gapOpen, options->gapExt, options->threshold);
+	free(dns2);
 }
-double python_alignShort(SMatrix matrix, const char *s1, int ls1, const char *s2, int ls2, double gapOpen, double gapExt, double threshold) {
-	Options options;
-	options.gapOpen = gapOpen;
-	options.gapExt = gapExt;
-	options.threshold = threshold;
 
-#ifdef PY_DEBUG
-	printf("SHORT aligning with matrix (gapExt = %.2f, gapOpen = %.2f, threshold = %.2f, matrix loc = %lu, mod 16 = %lu):\n",
-			gapExt, gapOpen, threshold, ((unsigned long)matrix), ((unsigned long)matrix) % 16);
+void debug_profile(char* name, void* pb, const char* q, int queryLen, void* matrix, int isShort) {
+	char* query = denormalize(q, queryLen);
+
+	printf("Successfully created %s profile at %lu from query = %s, len(query) = %d\n", name, (unsigned long)pb, query, queryLen);
+	printf("The matrix used for the %s profile: \n", name);
 	int i, j;
 	for (i = 0; i < 26; ++i) {
 		printf("[");
 		for (j = 0; j < 26; ++j) {
-			printf("%+d, ", matrix[i * 26 + j]);
+			double val;
+			if(isShort) {
+				val = (double) ((SMatrix)matrix)[i * 26 + j];
+			} else {
+				val = (double) ((BMatrix)matrix)[i * 26 + j];
+			}
+
+			printf("%+.2f, ", val);
 		}
 		printf("]\n");
 	}
-#endif
 
-	ProfileShort * profileShort = swps3_createProfileShortSSE(s1, ls1, matrix);
-	double score = swps3_alignmentShortSSE( profileShort, s2, ls2, &options);
-	swps3_freeProfileShortSSE(profileShort);
-
-	return score;
-}*/
+	free(query);
+}
 
 double c_align_profile_byte_sse(ProfileByte* profile, const char *s2, int ls2, double gapOpen, double gapExt, double threshold) {
 	Options options;
@@ -94,8 +64,7 @@ double c_align_profile_byte_sse(ProfileByte* profile, const char *s2, int ls2, d
 	options.threshold = threshold;
 
 #ifdef PY_DEBUG
-	printf("Aligning BYTE: profile = %lu, s2 = %s, len(s2) = %d, gapOpen = %f, gapExt = %f, threshold = %f\n",
-			(unsigned long)profile, s2, ls2, options.gapOpen, options.gapExt, options.threshold);
+	debug_alignment("BYTE", profile, s2, ls2, &options);
 #endif
 
 	return swps3_alignmentByteSSE( profile, s2, ls2, &options);
@@ -107,8 +76,7 @@ double c_align_profile_short_sse(ProfileShort* profile, const char *s2, int ls2,
 	options.threshold = threshold;
 
 #ifdef PY_DEBUG
-	printf("Aligning SHORT: profile = %lu, s2 = %s, len(s2) = %d, gapOpen = %f, gapExt = %f, threshold = %f\n",
-			(unsigned long)profile, s2, ls2, options.gapOpen, options.gapExt, options.threshold);
+	debug_alignment("SHORT", profile, s2, ls2, &options);
 #endif
 
 	return swps3_alignmentShortSSE( profile, s2, ls2, &options);
@@ -117,32 +85,14 @@ double c_align_profile_short_sse(ProfileShort* profile, const char *s2, int ls2,
 ProfileByte* c_create_profile_byte_sse(const char* query, int queryLen, BMatrix matrix) {
 	ProfileByte* pb = swps3_createProfileByteSSE(query, queryLen, matrix);
 #ifdef PY_DEBUG
-	printf("Successfully created BYTE profile at %lu from query = %s, len(query) = %d\n", (unsigned long)pb, query, queryLen);
-	printf("The matrix used for the BYTE profile: \n");
-	int i, j;
-	for (i = 0; i < 26; ++i) {
-		printf("[");
-		for (j = 0; j < 26; ++j) {
-			printf("%+.2f, ", (double) matrix[i * 26 + j]);
-		}
-		printf("]\n");
-	}
+	debug_profile("BYTE", pb, query, queryLen, matrix, 0);
 #endif
 	return pb;
 }
 ProfileShort* c_create_profile_short_sse(const char* query, int queryLen, SMatrix matrix) {
 	ProfileShort* ps = swps3_createProfileShortSSE(query, queryLen, matrix);
 #ifdef PY_DEBUG
-	printf("Successfully created SHORT profile at %lu from query = %s, len(query) = %d\n", (unsigned long)ps, query, queryLen);
-	printf("The matrix used for the SHORT profile: \n");
-	int i, j;
-	for (i = 0; i < 26; ++i) {
-		printf("[");
-		for (j = 0; j < 26; ++j) {
-			printf("%+.2f, ", (double) matrix[i * 26 + j]);
-		}
-		printf("]\n");
-	}
+	debug_profile("SHORT", ps, query, queryLen, matrix, 1);
 #endif
 	return ps;
 }

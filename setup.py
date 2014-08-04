@@ -18,15 +18,17 @@ setup(
 		"cython_swps3",
 		sources=["cython_swps3.pyx"] + map(lambda c: c_dir + c, c_sources),
 		#libraries=["swps3"],
-		#extra_link_args=["-L../"], 
+		#extra_link_args=["-L../"],
+        #extra_compile_args = ['-DPY_DEBUG'],
 		include_dirs=[c_dir]
 	)]
     ),
     name='cython_swps3',
-    version='0.3',
+    version='0.6',
     author='Your Name',
     author_email='your@email',
     #cmdclass = {'build_ext': build_ext},
+    #install_requires=['numpy', 'cython'],
     license='MIT',
     description='Example package that says hello'
 )

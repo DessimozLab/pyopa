@@ -51,6 +51,7 @@
 #include <string.h>
 #include <assert.h>
 #include <float.h>
+#include "Python_extension.h"
 
 void normalizeSequence(char* seq, int seqLen) {
 	int i;
@@ -59,90 +60,78 @@ void normalizeSequence(char* seq, int seqLen) {
 	}
 }
 
-int main( int argc, char * argv[] ){
-	/* TODO this main function is not intended to work correctly (the matrices are not even initialized) */
-	srand(time(NULL));
+double ceil(double val) {
+	short tmp = (short) val;
+	if(tmp < val) {
+		tmp++;
+	}
+	return tmp;
+}
 
+void readDoubleMatrix(DMatrix matrix, const char* fileLoc, Options* options) {
+	char line[40000];
+	int i, curr_off, offset = 0;
+
+	FILE* f = fopen(fileLoc, "r");
+
+	fgets(line , 40000, f);
+	sscanf(line, "%lf", &(options->gapOpen));
+
+	fgets(line , 40000, f);
+	sscanf(line, "%lf", &(options->gapExt));
+
+	fgets(line , 40000, f);
+	for (i = 0; i < MATRIX_DIM*MATRIX_DIM; ++i) {
+		sscanf(line + offset, "%lf%n", &matrix[i], &curr_off);
+		offset += curr_off;
+	}
+
+	fclose(f);
+}
+
+void readShortMatrix(SMatrix matrix, const char* fileLoc, Options* options) {
+	double scaleFactor = 65535.0 / options->threshold;
+	double dMatrix[MATRIX_DIM*MATRIX_DIM];
+	int i;
+
+	readDoubleMatrix(dMatrix, fileLoc, options);
+	options->gapOpen = (short) ceil(options->gapOpen * scaleFactor);
+	options->gapExt = (short) ceil(options->gapExt * scaleFactor);
+
+	for (i = 0; i < MATRIX_DIM*MATRIX_DIM; ++i) {
+		matrix[i] = (short) ceil(dMatrix[i] * scaleFactor);
+	}
+}
+
+int main( int argc, char * argv[] ){
+
+	int16_t sMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
 	int i, j;
 
-	int8_t bMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
-	int16_t sMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
-
-	const char* loc = "python/test/seq.test";
-
-	FILE *fp;
-	fp = fopen(loc,"r");
-
-	int ch, number_of_lines = 0;
-
-	do
-	{
-	    ch = fgetc(fp);
-	    if(ch == '\n')
-	    	number_of_lines++;
-	} while (ch != EOF);
-
-	char** sequences = (char**) malloc(number_of_lines * sizeof(char*));
-	int* lens = (int*) malloc(number_of_lines * sizeof(int));
-
-	for (i = 0; i < number_of_lines; ++i) {
-		sequences[i] = (char*) malloc(20000 * sizeof(char*));
-	}
-
-	fseek (fp, 9, SEEK_SET);
-
-	i = 0;
-	while(fgets(sequences[i], 20000, fp) != NULL)
-	{
-		/*replace new line with end of string*/
-		sequences[i][strlen(sequences[i])-1] = '\0';
-		lens[i] = strlen(sequences[i]);
-		normalizeSequence(sequences[i], lens[i]);
-		++i;
-	}
-
-	fclose(fp);
-
 	Options options;
-	options.threshold = 85.0;
-	options.gapOpen = -20;
-	options.gapExt = -2;
+	options.threshold = 306.896691;
 
-	double* res = (double*) malloc((number_of_lines - 1) * number_of_lines / 2 * sizeof(double));
+	readShortMatrix(sMatrix, "/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/1263.dat", &options);
 
-	int resSize = 0;
+	double shortFactor = 65535.0 / options.threshold;
 
-	float millis = 0.0;
-	unsigned long start, end;
+	char query[] = "PISRIDNNKILGNTGIISVTIGVIIFKDLHAKVLLGLHGFWKFIYYYDGLDVVLTVLRDLKGTTNTSDICKHKMSIAEGQFDSAAIQGCEKWILRIEIVTDLILTRSAVLCEDNSFDSRMPGFLLIAIIWANSYEIGCSYSQAASTLIARGYASFDAAVRSRIIQPTIKMEGNNDAQEPLKQNVVWQSQSFCVCFGRLPGTAESYSTCDFLLTGTELPHTFQTIRCDIFGTDKPFTNFDGAGRFAYPNFNPFGGALRNLSIGEVNHITIDHASKIEPSVKGNLITYYILEKKGFFPDGCLLSLLVDPLFLLSSPSEIKTVNLYSAKTRCTSSNAEMPIVVSIGKEGANEYTLIHLSFYVPAWRAGEYRLCSALEFTQFENSYWAHYIVTDIAADLAETQANASNGDRQEKQVGTRLMVLKAKGLTEPTASQASEPRENFFPEGKLRLSQSAAVAVGMLITVVDMTAKYGCYGETNFVVRAQLSTLLQGFPGILKIHVSVAEKCIVGIICATLKKGYLHQTAVETLPRPYRYKANARANKYQELCRLLRKATPDGKLQLFIPLAVVIWFQPTVPHEARRTNLCFVKVKLLPRVERDLCDSVQIYEWFYTQPWSIRTARPGVDPSGPEASEQWKWLDFPDFCIVLACKVQMIVHIHYKDWPIICHPFDGRKQVVDDKTMYEYQVACLLVEGLDRPERKQGQFKWRFVQYGKQNPLLPQPALVGGLGIASRFEPPTHIQADQDLTPSDTIMKTSAEAPRGDVIQYVGKEGLPTDNTWIVVQVFFDTPGQWVGAARAMPTKYLS";
+	char db[] = "PISRVENNKILANTGHISVTIGCIILKELHGPPHGLSSTTHAKVLRGLHGFWKFIYYLDGLDVVMTPLRNTKGVTNTSDHCKHKMAIAEGRFDSAVIQGCEKWILRIEIVWDSILTRPAVLCLDKSFDSRMPGFLLIRIIWANSYEISFSYSNETASTLIANGYATFDAATRSRIIQPTIKMEGNNDAQKPLNQNVVWEKQTFCVCFGRLPGTAESFSTCDFLLTGEELPNSLQTIRCDLFGTDKPFTNFDGAGRFATPSFNEFGGALRNLSVGSVNHITIEHASEIEPTVKGNWVTYYVLEKKGFFPTACLLSILTDPAYLLTSPSEYRVINLYSPRTRCTSSNAEMPIVVAIGKEGAEDYTLIHLSFYVPAWRAGEYRLCSSLEFTEFSNSYWAHYIVTDIQAKRAETQANASNGKRQEKQKGTRLMVLKAKGATEPTATDQADEPRENFFPEGSIRLSQAAAVAVGHLFTVCDMTARYGCYGETNFVVRAQWSRLTQGFPGILRIGVSVAEKCIVGIICAALKPKGLLHQTAVERLPLPYRYKANARANDYQELCKLLRKSTPDGKLQLFIGPAAVITFQPHEARRTNLCFVKVKLLPRVERDACDKILIYTWFYAEPWSIRTGRPASGPEASEQYKWLDFPDFAIVLACKVQMVVHIHYQDWPINCHPFDGRKQVMDDKTMYQYQVACVLVEGLDHPQRVQGEFKWKMIQYGKTDPLLPQPSLVGGLGIASRFEPPTHIQADQDLTPTDSIMRTSAEAPRGDIIQMVGKDVFFDTPGQWVGAGRALRTKYLK";
+	int ql = strlen(query);
+	int dbl = strlen(db);
 
-	start = clock();
+	normalizeSequence(query, ql);
+	normalizeSequence(db, dbl);
 
-	for (i = 0; i < number_of_lines; ++i) {
-		ProfileShort* profile = swps3_createProfileShortSSE(sequences[i], lens[i], sMatrix);
-		for (j = i + 1; j < number_of_lines; ++j) {
-			res[resSize] = swps3_alignmentShortSSE(profile, sequences[j], lens[j], &options);
-			++resSize;
-		}
+	ProfileShort* profile = c_create_profile_short_sse(query, ql, sMatrix);
 
-		swps3_freeProfileShortSSE(profile);
-	}
+	double score = c_align_profile_short_sse(profile, db, dbl, options.gapOpen, options.gapExt, options.threshold);
 
-	end = clock();
+	score /= shortFactor;
 
-	millis = (end - start) / 1000.0;
+	printf("SHORT score: %.5f", score);
 
-	printf("A total of %d alignments (all to all with %d) have been done in %.3fs", resSize, number_of_lines, millis/1000.0);
-
-
-	/*for (i = 0; i < resSize; ++i) {
-		printf("%.3f\n", res[i]);
-	}*/
-
-	for (i = 0; i < number_of_lines; ++i) {
-		free(sequences[i]);
-	}
-	free(sequences);
-	free(res);
+	swps3_freeProfileShortSSE(profile);
 
 	return 0;
 }

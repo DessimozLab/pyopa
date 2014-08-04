@@ -37,7 +37,7 @@ EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int query
 	/* int segLen  = ((queryLen+7)/8 + 1) & ~1; */
 	int segLen  = (queryLen+7)/8;
 	int i,j,k;
-	int bias = 0;
+	u_int16_t bias = 0;
 	int16_t * pprofile;
 	ProfileShort * profile = malloc( sizeof(ProfileShort)+((segLen*MATRIX_DIM+1) & ~(0x1))*sizeof(__m128i)+segLen*3*sizeof(__m128i)+64+2*sysconf(_SC_PAGESIZE) );
 
@@ -53,17 +53,24 @@ EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int query
 		for(j=0; j<MATRIX_DIM; j++)
 			if (bias < -matrix[ i*MATRIX_DIM+j ])
 				bias = -matrix[ i*MATRIX_DIM+j ];
-	pprofile = (int16_t*)profile->profile;
+	pprofile = (u_int16_t*)profile->profile;
+	/* TODO remove bias? */
+	bias = 0;
 
-	for(i=0; i<MATRIX_DIM; i++)
-		for(j=0; j<segLen; j++)
-			for(k=0; k<8; k++)
+	for(i=0; i<MATRIX_DIM; i++) {
+		for(j=0; j<segLen; j++) {
+			for(k=0; k<8; k++) {
 				if(j+k*segLen < queryLen) {
 					char queryChar = query[j+k*segLen];
 					*(pprofile++) = matrix[queryChar*MATRIX_DIM+i]+bias;
 				}
 				else
+				{
 					*(pprofile++) = 0;
+				}
+			}
+		}
+	}
 	profile->bias = bias;
 	return profile;
 }

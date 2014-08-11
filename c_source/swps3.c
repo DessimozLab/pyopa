@@ -52,6 +52,8 @@
 #include <assert.h>
 #include <float.h>
 #include "Python_extension.h"
+#include "EstimatePam.h"
+#include <string.h>
 
 void normalizeSequence(char* seq, int seqLen) {
 	int i;
@@ -60,9 +62,21 @@ void normalizeSequence(char* seq, int seqLen) {
 	}
 }
 
+void denormalizeSequence(char* str, int len) {
+	int i;
+
+	for (i = 0; i < len; ++i) {
+		if (str[i] != '_') {
+			str[i] = 'A' + str[i];
+		}
+	}
+
+	str[len] = '\0';
+}
+
 double ceil(double val) {
 	short tmp = (short) val;
-	if(tmp < val) {
+	if (tmp < val) {
 		tmp++;
 	}
 	return tmp;
@@ -74,14 +88,18 @@ void readDoubleMatrix(DMatrix matrix, const char* fileLoc, Options* options) {
 
 	FILE* f = fopen(fileLoc, "r");
 
-	fgets(line , 40000, f);
+	fgets(line, 40000, f);
 	sscanf(line, "%lf", &(options->gapOpen));
 
-	fgets(line , 40000, f);
+	fgets(line, 40000, f);
 	sscanf(line, "%lf", &(options->gapExt));
 
-	fgets(line , 40000, f);
-	for (i = 0; i < MATRIX_DIM*MATRIX_DIM; ++i) {
+	/* This is now the PanDistance, because I did not want to modify this Options struct but we need it for tests */
+	fgets(line, 40000, f);
+	sscanf(line, "%lf", &(options->threshold));
+
+	fgets(line, 40000, f);
+	for (i = 0; i < MATRIX_DIM * MATRIX_DIM; ++i) {
 		sscanf(line + offset, "%lf%n", &matrix[i], &curr_off);
 		offset += curr_off;
 	}
@@ -91,45 +109,112 @@ void readDoubleMatrix(DMatrix matrix, const char* fileLoc, Options* options) {
 
 void readShortMatrix(SMatrix matrix, const char* fileLoc, Options* options) {
 	double scaleFactor = 65535.0 / options->threshold;
-	double dMatrix[MATRIX_DIM*MATRIX_DIM];
+	double dMatrix[MATRIX_DIM * MATRIX_DIM];
 	int i;
 
 	readDoubleMatrix(dMatrix, fileLoc, options);
 	options->gapOpen = (short) ceil(options->gapOpen * scaleFactor);
 	options->gapExt = (short) ceil(options->gapExt * scaleFactor);
 
-	for (i = 0; i < MATRIX_DIM*MATRIX_DIM; ++i) {
+	for (i = 0; i < MATRIX_DIM * MATRIX_DIM; ++i) {
 		matrix[i] = (short) ceil(dMatrix[i] * scaleFactor);
 	}
 }
 
-int main( int argc, char * argv[] ){
+int main(int argc, char * argv[]) {
 
-	int16_t sMatrix[MATRIX_DIM*MATRIX_DIM] __ALIGNED__;
+	int16_t sMatrix[MATRIX_DIM * MATRIX_DIM];
+	double dMatrix[MATRIX_DIM * MATRIX_DIM];
+	/* 1267 instead of 1266 because in darwin indexing starts from 1 and the code is migrated like that */
+	double* doubleMatrices[1267];
+	double gapOpenCosts[1267];
+	double gapExtCosts[1267];
+	double pamDistances[1267];
+	double logPAM1Matrix[MATRIX_DIM * MATRIX_DIM];
 	int i, j;
 
-	Options options;
-	options.threshold = 306.896691;
+	Options tmp;
+	readDoubleMatrix(logPAM1Matrix,
+			"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/logPAM1.dat",
+			&tmp);
+	for (i = 1; i < 1267; ++i) {
+		doubleMatrices[i] = (double*) malloc(
+				MATRIX_DIM * MATRIX_DIM * sizeof(double));
+		char name[2000];
+		sprintf(name,
+				"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/%d.dat",
+				i);
+		readDoubleMatrix(doubleMatrices[i], name, &tmp);
+		gapOpenCosts[i] = tmp.gapOpen;
+		gapExtCosts[i] = tmp.gapExt;
+		/* threshold contains the pamDistance for now */
+		pamDistances[i] = tmp.threshold;
+	}
 
-	readShortMatrix(sMatrix, "/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/1263.dat", &options);
+	Options options_short;
+	Options options_double;
 
-	double shortFactor = 65535.0 / options.threshold;
+	readShortMatrix(sMatrix,
+			"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/1263.dat",
+			&options_short);
+	readDoubleMatrix(dMatrix,
+			"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/98.dat",
+			&options_double);
 
-	char query[] = "PISRIDNNKILGNTGIISVTIGVIIFKDLHAKVLLGLHGFWKFIYYYDGLDVVLTVLRDLKGTTNTSDICKHKMSIAEGQFDSAAIQGCEKWILRIEIVTDLILTRSAVLCEDNSFDSRMPGFLLIAIIWANSYEIGCSYSQAASTLIARGYASFDAAVRSRIIQPTIKMEGNNDAQEPLKQNVVWQSQSFCVCFGRLPGTAESYSTCDFLLTGTELPHTFQTIRCDIFGTDKPFTNFDGAGRFAYPNFNPFGGALRNLSIGEVNHITIDHASKIEPSVKGNLITYYILEKKGFFPDGCLLSLLVDPLFLLSSPSEIKTVNLYSAKTRCTSSNAEMPIVVSIGKEGANEYTLIHLSFYVPAWRAGEYRLCSALEFTQFENSYWAHYIVTDIAADLAETQANASNGDRQEKQVGTRLMVLKAKGLTEPTASQASEPRENFFPEGKLRLSQSAAVAVGMLITVVDMTAKYGCYGETNFVVRAQLSTLLQGFPGILKIHVSVAEKCIVGIICATLKKGYLHQTAVETLPRPYRYKANARANKYQELCRLLRKATPDGKLQLFIPLAVVIWFQPTVPHEARRTNLCFVKVKLLPRVERDLCDSVQIYEWFYTQPWSIRTARPGVDPSGPEASEQWKWLDFPDFCIVLACKVQMIVHIHYKDWPIICHPFDGRKQVVDDKTMYEYQVACLLVEGLDRPERKQGQFKWRFVQYGKQNPLLPQPALVGGLGIASRFEPPTHIQADQDLTPSDTIMKTSAEAPRGDVIQYVGKEGLPTDNTWIVVQVFFDTPGQWVGAARAMPTKYLS";
-	char db[] = "PISRVENNKILANTGHISVTIGCIILKELHGPPHGLSSTTHAKVLRGLHGFWKFIYYLDGLDVVMTPLRNTKGVTNTSDHCKHKMAIAEGRFDSAVIQGCEKWILRIEIVWDSILTRPAVLCLDKSFDSRMPGFLLIRIIWANSYEISFSYSNETASTLIANGYATFDAATRSRIIQPTIKMEGNNDAQKPLNQNVVWEKQTFCVCFGRLPGTAESFSTCDFLLTGEELPNSLQTIRCDLFGTDKPFTNFDGAGRFATPSFNEFGGALRNLSVGSVNHITIEHASEIEPTVKGNWVTYYVLEKKGFFPTACLLSILTDPAYLLTSPSEYRVINLYSPRTRCTSSNAEMPIVVAIGKEGAEDYTLIHLSFYVPAWRAGEYRLCSSLEFTEFSNSYWAHYIVTDIQAKRAETQANASNGKRQEKQKGTRLMVLKAKGATEPTATDQADEPRENFFPEGSIRLSQAAAVAVGHLFTVCDMTARYGCYGETNFVVRAQWSRLTQGFPGILRIGVSVAEKCIVGIICAALKPKGLLHQTAVERLPLPYRYKANARANDYQELCKLLRKSTPDGKLQLFIGPAAVITFQPHEARRTNLCFVKVKLLPRVERDACDKILIYTWFYAEPWSIRTGRPASGPEASEQYKWLDFPDFAIVLACKVQMVVHIHYQDWPINCHPFDGRKQVMDDKTMYQYQVACVLVEGLDHPQRVQGEFKWKMIQYGKTDPLLPQPSLVGGLGIASRFEPPTHIQADQDLTPTDSIMRTSAEAPRGDIIQMVGKDVFFDTPGQWVGAGRALRTKYLK";
+	options_short.threshold = 306.896691;
+	options_double.threshold = DBL_MAX;
+
+	double shortFactor = 65535.0 / options_short.threshold;
+
+	/*char query[] =
+			"GANRAKHVKYWRCKWWVASPKNLLFQTVHEMALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
+	char db[] =
+			"GANRAKHVKYWRTEANPKTCKWWVASPKSNLLFQTVHIKSEGTYLARNSVSATRDTKKVQDLLSRLQTSEYGLRHIFTDARRNETRTGIEMNALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAQLHIFNGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
+*/
+	char o1[MAXSEQLEN], o2[MAXSEQLEN];
+	char query[] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+	 char db[] =   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 	int ql = strlen(query);
 	int dbl = strlen(db);
 
 	normalizeSequence(query, ql);
 	normalizeSequence(db, dbl);
 
-	ProfileShort* profile = c_create_profile_short_sse(query, ql, sMatrix);
+	ProfileShort* profile = c_create_profile_short_sse_local(query, ql,
+			sMatrix);
 
-	double score = c_align_profile_short_sse(profile, db, dbl, options.gapOpen, options.gapExt, options.threshold);
+	double score_short = c_align_profile_short_sse_local(profile, db, dbl,
+			options_short.gapOpen, options_short.gapExt,
+			options_short.threshold);
+	int max1, max2;
+	double short_double = c_align_double_local(dMatrix, query, ql, db, dbl,
+			options_double.gapOpen, options_double.gapExt,
+			options_double.threshold, &max1, &max2);
+	double double_global = c_align_double_global(dMatrix, query, ql, db, dbl,
+			options_double.gapOpen, options_double.gapExt);
+	double scalar_double = c_align_scalar_reference_local(dMatrix, query, ql,
+			db, dbl, options_double.gapOpen, options_double.gapExt,
+			options_double.threshold);
+	/*  */
+	int retLen = c_align_strings(dMatrix, query, ql, db, dbl, scalar_double, o1,
+			o2, 0.5e-4, options_double.gapOpen, options_double.gapExt);
 
-	score /= shortFactor;
+	denormalizeSequence(o1, retLen);
+	denormalizeSequence(o2, retLen);
 
-	printf("SHORT score: %.5f", score);
+	score_short /= shortFactor;
+
+	printf("SHORT score: %.5f\n", score_short);
+	printf("DOUBLE score: %.15f\n", short_double);
+	printf("SCALAR score: %.15f\n", scalar_double);
+	printf("double_global: %.15f\n", double_global);
+	printf("Concrete alignment (%d):\nSeq1: %s\nSeq2: %s\n", retLen, o1, o2);
+
+	normalizeSequence(o1, retLen);
+	normalizeSequence(o2, retLen);
+	double* result = EstimatePam(o1, o2, retLen, doubleMatrices, 1266,
+			gapOpenCosts, gapExtCosts, pamDistances, logPAM1Matrix);
+	printf("EstimatePam:\n%f\n%f\n%f\n", result[0], result[1], result[2]);
 
 	swps3_freeProfileShortSSE(profile);
 

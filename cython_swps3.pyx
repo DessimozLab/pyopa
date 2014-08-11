@@ -8,6 +8,7 @@ import math
 import os
 import fnmatch
 import re
+import ctypes
 
 
 def normalize_sequence(s):
@@ -176,8 +177,9 @@ def align_byte(s1, s2, env_file, is_normalized = False):
     return p.align_byte(s2, e, is_normalized)
 
 
-cpdef double c_align_scalar_normalized(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1,
-                                    const char *s2, int ls2, double gap_open, double gap_ext, double threshold):
+cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,ndim=2] matrix, const char *s1,
+                                                                int ls1, const char *s2, int ls2, double gap_open,
+                                                                double gap_ext, double threshold):
     """
     This is a simple wrapper for the scalar alignment C function.
     :param matrix: the 26x26 double matrix
@@ -190,13 +192,101 @@ cpdef double c_align_scalar_normalized(np.ndarray[np.double_t,ndim=2] matrix, co
     :param threshold: the threshold used for the calculation (might be ignored)
     :return: the exact scalar score
     """
-    return cython_swps3.c_align_scalar(<double*> matrix.data, s1, ls1, s2, ls2, gap_open, gap_ext, threshold)
+    return cython_swps3.c_align_scalar_reference_local(<double*> matrix.data, s1, ls1, s2, ls2,
+                                                       gap_open, gap_ext, threshold)
 
 
-def align_scalar(s1, s2, env, is_normalized = False):
+cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2,
+                                       int ls2, double gap_open, double gap_ext, double threshold, bint is_global):
+    """
+    :param matrix:
+    :param s1:
+    :param ls1:
+    :param s2:
+    :param ls2:
+    :param gap_open:
+    :param gap_ext:
+    :param threshold:
+    :param is_global:
+    :return:
+    """
+    cdef int max1[1]
+    cdef int max2[1]
+
+    ret = []
+
+    if not is_global:
+        res = cython_swps3.c_align_double_local(<double*> matrix.data, s1, ls1, s2, ls2,
+                                       gap_open, gap_ext, threshold, max1, max2)
+    else:
+        res = cython_swps3.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
+                                       gap_open, gap_ext)
+    ret.append(res)
+    ret.append(max1[0])
+    ret.append(max2[0])
+
+    return ret
+
+#TODO fix this matrix parameter
+cpdef align_strings(s1, s2, env,np.ndarray[np.double_t,ndim=2] matrix, is_normalized = False, provided_score = None):
+    if provided_score is None:
+        provided_score = align_double(s1, s2, env, is_normalized)
+
+    if not is_normalized:
+        s1 = normalize_sequence(s1)
+        s2 = normalize_sequence(s2)
+
+    #TODO remove these char arrays
+    cdef char o1[100010]
+    cdef char o2[100010]
+
+    aligned_s1 = ""
+    aligned_s2 = ""
+
+    max_len = cython_swps3.c_align_strings(<double*> matrix.data, s1, len(s1),
+                                 s2, len(s2), provided_score, o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
+
+    #denormalize the result strings and keep the _-s
+    for i in range(max_len):
+        if o1[i] != '_':
+            aligned_s1 += chr(ord('A') + o1[i])
+        else:
+            aligned_s1 += '_'
+
+        if o2[i] != '_':
+            aligned_s2 += chr(ord('A') + o2[i])
+        else:
+            aligned_s2 += '_'
+
+    return [aligned_s1, aligned_s2]
+
+def align_double(s1, s2, env, is_normalized = False, stop_at_threshold = False, is_global = False):
+    """
+    :param s1:
+    :param s2:
+    :param env:
+    :param is_normalized:
+    :param stop_at_threshold:
+    :return:
+    """
+    if not is_normalized:
+        s1 = normalize_sequence(s1)
+        s2 = normalize_sequence(s2)
+
+    if not stop_at_threshold:
+        res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
+                                     env.gap_open, env.gap_ext, sys.float_info.max, is_global)
+    else:
+        res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
+                             env.gap_open, env.gap_ext, env.threshold, is_global)
+
+    #TODO use max1 and max2 values
+    return res[0]
+
+def align_scalar_reference_local(s1, s2, env, is_normalized = False):
     """
     This is a simpler interface to the scalar alignment function written in C by using the AlignmentEnvironment python
-    class.
+    class. This is a reference implementation and not vectorized.
     :param s1: first string
     :param s2: second string
     :param env: the AlignmentEnvironment to be used
@@ -206,7 +296,7 @@ def align_scalar(s1, s2, env, is_normalized = False):
     if not is_normalized:
         s1 = normalize_sequence(s1)
         s2 = normalize_sequence(s2)
-    return c_align_scalar_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
+    return c_align_scalar_normalized_reference_local(env.float64_matrix, s1, len(s1), s2, len(s2),
                                      env.gap_open, env.gap_ext, env.threshold)
 
 
@@ -230,10 +320,10 @@ cdef class AlignmentProfile:
 
     def __dealloc__(self):
         if self._c_profileByte is not NULL:
-            cython_swps3.c_free_profile_byte_sse(self._c_profileByte)
+            cython_swps3.c_free_profile_byte_sse_local(self._c_profileByte)
 
         if self._c_profileShort is not NULL:
-            cython_swps3.c_free_profile_short_sse(self._c_profileShort)
+            cython_swps3.c_free_profile_short_sse_local(self._c_profileShort)
 
 
     def create_profiles(self, query, env, is_normalized = False):
@@ -264,9 +354,9 @@ cdef class AlignmentProfile:
             query = normalize_sequence(query)
 
         if self._c_profileByte is not NULL:
-            cython_swps3.c_free_profile_byte_sse(self._c_profileByte)
+            cython_swps3.c_free_profile_byte_sse_local(self._c_profileByte)
 
-        self._c_profileByte = cython_swps3.c_create_profile_byte_sse(query, len(query), <signed char*> matrix.data)
+        self._c_profileByte = cython_swps3.c_create_profile_byte_sse_local(query, len(query), <signed char*> matrix.data)
 
 
     cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix, is_normalized = False):
@@ -286,9 +376,10 @@ cdef class AlignmentProfile:
             query = normalize_sequence(query)
 
         if self._c_profileShort is not NULL:
-            cython_swps3.c_free_profile_short_sse(self._c_profileShort)
+            cython_swps3.c_free_profile_short_sse_local(self._c_profileShort)
 
-        self._c_profileShort = cython_swps3.c_create_profile_short_sse(query, len(query), <signed short*> matrix.data)
+        self._c_profileShort = cython_swps3.c_create_profile_short_sse_local(query, len(query),
+                                                                             <signed short*> matrix.data)
 
 
     cpdef align_byte(self, s2, env, is_normalized = False):
@@ -305,7 +396,7 @@ cdef class AlignmentProfile:
         if not is_normalized:
             s2 = normalize_sequence(s2)
 
-        ret = cython_swps3.c_align_profile_byte_sse(<ProfileByte*> self._c_profileByte, s2, len(s2),
+        ret = cython_swps3.c_align_profile_byte_sse_local(<ProfileByte*> self._c_profileByte, s2, len(s2),
                                                       env.int8_gap_open, env.int8_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -327,7 +418,7 @@ cdef class AlignmentProfile:
         if not is_normalized:
             s2 = normalize_sequence(s2)
 
-        ret = cython_swps3.c_align_profile_short_sse(<ProfileShort*> self._c_profileShort,
+        ret = cython_swps3.c_align_profile_short_sse_local(<ProfileShort*> self._c_profileShort,
                                                        s2, len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -346,7 +437,7 @@ class AlignmentEnvironment:
     """
     def __init__(self):
         #the PAM distance associated with the matrices
-        self.pam = 0
+        self.pam = 0.0
 
         #The columns of the compressed matrix. The compressed matrix to be extended to a 26x26 matrix since the profile
         #generation requires a 26x26 matrix

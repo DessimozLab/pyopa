@@ -7,7 +7,8 @@ CFLAGS  ?= -Wall -Wextra -O666 -msse3 -ansi -O0 -g3 -fPIC -fvisibility=hidden
 DEFS    ?= -DHAVE_SYSCONF_NPROCESSORS -DHAVE_MALLOC_H -DPY_DEBUG
 #DEFS    ?= -DHAVE_SYSCONF_NPROCESSORS -DHAVE_MALLOC_H
 CC      ?= gcc
-OBJS     = DynProgr_sse_byte.o DynProgr_sse_short.o DynProgr_scalar.o matrix.o fasta.o debug.o Python_extension.o
+OBJS     = DynProgr_sse_byte.o DynProgr_sse_short.o DynProgr_scalar.o matrix.o fasta.o debug.o Python_extension.o EstimatePam.o
+LDFLAGS = -L/usr/lib/x86_64-linux-gnu/ -lm
 
 all: swps3 dblen libswps3.a #libswps3.so
 

@@ -3,6 +3,7 @@ import os
 import csv
 import cython_swps3
 import sys
+import json
 
 
 class DarwinResult:
@@ -17,30 +18,20 @@ class DarwinResult:
         self.score_short = 0.0
         self.score_byte = 0.0
 
-'''
-def writeEnvFile(all_envs):
+"""
+def write_env_file(env, name):
+    matrix = env.float64_matrix.reshape(26*26)
+    with open(os.path.dirname(__file__) + '/data/matrices/C_compatible/' + name + '.dat', 'w+') as f:
+        f.write("%.20f\n%.20f\n%.20f\n" % (env.gap_open, env.gap_ext, env.pam))
+
+        for i in range(26*26):
+            f.write("%.20f " % matrix[i])
+
+def write_all_env_files(all_envs):
 
     for i in range(len(all_envs)):
-        env = all_envs[i]
-
-        env.float64_matrix = env.float64_matrix.reshape(26*26)
-        env.int16_matrix = env.int16_matrix.reshape(26*26)
-        env.int8_matrix = env.int8_matrix.reshape(26*26)
-
-        with open(os.path.dirname(__file__) + '/data/matrices/C_compatible/' + str(i + 1) + '.dat', 'w+') as f:
-            f.write("%.20f\n%.20f\n" % (env.gap_open, env.gap_ext))
-
-            for i in range(26*26):
-                f.write("%.20f " % env.float64_matrix[i])
-
-            f.write("\n")
-            for i in range(26*26):
-                f.write("%d " % env.int16_matrix[i])
-
-            f.write("\n")
-            for i in range(26*26):
-                f.write("%d " % env.int8_matrix[i])
-'''
+        write_env_file(all_envs[i], str(i + 1))
+"""
 
 
 class AlignTest(unittest.TestCase):
@@ -56,7 +47,14 @@ class AlignTest(unittest.TestCase):
         self.alignment_environments = cython_swps3.read_all_env_json(
             os.path.dirname(__file__) + '/data/matrices/json/all_matrices.json')
 
-        #writeEnvFile(self.alignment_environments)
+        """
+        write_all_env_files(self.alignment_environments)
+        with open(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json') as lp:
+            json_data = json.load(lp)
+            json_data["Scores"] = map(lambda l: map(lambda s: s/(2048*2048*2048), l), json_data["Scores"])
+            logPAM1 = cython_swps3.read_env_json(json_data, self.alignment_environments[0].columns)
+            write_env_file(logPAM1, "logPAM1")
+        """
 
         with open(os.path.dirname(__file__) + '/data/reference_test_results.dat') as f:
             #skip header
@@ -100,20 +98,22 @@ class AlignTest(unittest.TestCase):
             profile = cython_swps3.AlignmentProfile()
             profile.create_profiles(s1, env, True)
 
-            scalar_result = cython_swps3.align_scalar(s1, s2, env, True)
+            scalar_result_reference = cython_swps3.align_scalar_reference_local(s1, s2, env, True)
+            double_result = cython_swps3.align_double(s1, s2, env, True)
             byte_result = profile.align_byte(s2, env, True)
             short_result = profile.align_short(s2, env, True)
 
+            self.assertAlmostEqual(scalar_result_reference, r.score_double, places=7,
+                                   msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'
+                                       % (scalar_result_reference, r.score_double, completed + 1))
             self.assertGreaterEqual(short_result, r.score_double,
                                     "Short score must be greater or equal than double score.")
             self.assertGreaterEqual(byte_result, r.score_double,
                                     "Byte score must be greater or equal than double score.")
-
-            #TODO should be a more precise comparison
-            self.assertAlmostEqual(scalar_result, r.score_double,
+            self.assertAlmostEqual(double_result, r.score_double,
                                    places=7,
-                                   msg='Incorrect scalar score: %.8f. The correct score is: %.8f, test id: %d' %
-                                   (scalar_result, r.score_double, completed + 1))
+                                   msg='Incorrect double score: %.8f. The correct score is: %.8f, test id: %d' %
+                                   (double_result, r.score_double, completed + 1))
             '''
             if byte_result > r.threshold:
                 self.assertGreaterEqual(byte_result, sys.float_info.max)

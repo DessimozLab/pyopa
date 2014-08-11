@@ -38,7 +38,7 @@ EXPORT ProfileShort * swps3_createProfileShortSSE( const char * query, int query
 	int segLen  = (queryLen+7)/8;
 	int i,j,k;
 	u_int16_t bias = 0;
-	int16_t * pprofile;
+	u_int16_t * pprofile;
 	ProfileShort * profile = malloc( sizeof(ProfileShort)+((segLen*MATRIX_DIM+1) & ~(0x1))*sizeof(__m128i)+segLen*3*sizeof(__m128i)+64+2*sysconf(_SC_PAGESIZE) );
 
 	profile->loadOpt     = (__m128i*) ((size_t) (profile->data + 15) & ~(0xf)) ;

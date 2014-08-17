@@ -4,6 +4,7 @@ import csv
 import cython_swps3
 import sys
 import json
+import resource
 
 
 class DarwinResult:
@@ -17,6 +18,11 @@ class DarwinResult:
         self.score_float = 0.0
         self.score_short = 0.0
         self.score_byte = 0.0
+        self.als1 = ''
+        self.als2 = ''
+        self.ep_sim = 0
+        self.ep_pamn = 0
+        self.ep_var = 0
 
 """
 def write_env_file(env, name):
@@ -37,21 +43,25 @@ def write_all_env_files(all_envs):
 class AlignTest(unittest.TestCase):
 
     def setUp(self):
+        resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
         with open(os.path.dirname(__file__) + '/data/testseqs.txt') as f:
             self.sequences = f.readlines()
 
         self.sequences = map(lambda s: s.strip(), self.sequences)
         self.sequences_normalized = map(lambda s: cython_swps3.normalize_sequence(s), self.sequences)
-
         self.darwin_results = []
         self.alignment_environments = cython_swps3.read_all_env_json(
             os.path.dirname(__file__) + '/data/matrices/json/all_matrices.json')
+
+        log_pam1 = cython_swps3.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
+        self.dms = cython_swps3.MutipleAlEnv(self.alignment_environments, log_pam1)
 
         """
         write_all_env_files(self.alignment_environments)
         with open(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json') as lp:
             json_data = json.load(lp)
-            json_data["Scores"] = map(lambda l: map(lambda s: s/(2048*2048*2048), l), json_data["Scores"])
+            #json_data["Scores"] = map(lambda l: map(lambda s: s/(2048*2048*2048), l), json_data["Scores"])
             logPAM1 = cython_swps3.read_env_json(json_data, self.alignment_environments[0].columns)
             write_env_file(logPAM1, "logPAM1")
         """
@@ -61,7 +71,8 @@ class AlignTest(unittest.TestCase):
             next(f)
             reader = csv.reader(f, delimiter='\t')
 
-            for s1, s2, matrix_nr, pam, threshold, score_d, score_f, score_s, score_b in reader:
+            for s1, s2, matrix_nr, pam, threshold, score_d, score_f, score_s,\
+                score_b, als1, als2, ep_sim, ep_pamn, ep_var, in reader:
                 curr = DarwinResult()
                 curr.s1_id = int(s1)
                 curr.s2_id = int(s2)
@@ -72,6 +83,11 @@ class AlignTest(unittest.TestCase):
                 curr.score_float = float(score_f)
                 curr.score_short = float(score_s)
                 curr.score_byte = float(score_b)
+                curr.als1 = als1
+                curr.als2 = als2
+                curr.ep_sim = float(ep_sim)
+                curr.ep_pamn = float(ep_pamn)
+                curr.ep_var = float(ep_var)
 
                 self.darwin_results.append(curr)
 
@@ -99,9 +115,22 @@ class AlignTest(unittest.TestCase):
             profile.create_profiles(s1, env, True)
 
             scalar_result_reference = cython_swps3.align_scalar_reference_local(s1, s2, env, True)
-            double_result = cython_swps3.align_double(s1, s2, env, True)
+            double_alignment = cython_swps3.align_double(s1, s2, env, True, False, False, True)
+            double_result = double_alignment[0]
             byte_result = profile.align_byte(s2, env, True)
             short_result = profile.align_short(s2, env, True)
+
+            if r.als1 != '':
+                aligned_strings = cython_swps3.align_strings(s1, s2, env, True, False, double_alignment)
+                ep_result = self.dms.estimate_pam(aligned_strings[0], aligned_strings[1])
+                self.assertEqual(aligned_strings[0], r.als1)
+                self.assertEqual(aligned_strings[1], r.als2)
+                self.assertAlmostEqual(ep_result[0], r.ep_sim,
+                                       msg='Incorrect EstimatePam similarity score %.8f.'
+                                           ' The correct result is: % 8f, test id: %d' %
+                                           (ep_result[0], r.ep_sim, completed + 1))
+                self.assertAlmostEqual(ep_result[1], r.ep_pamn)
+                self.assertAlmostEqual(ep_result[2], r.ep_var)
 
             self.assertAlmostEqual(scalar_result_reference, r.score_double, places=7,
                                    msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'

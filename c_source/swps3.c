@@ -58,7 +58,9 @@
 void normalizeSequence(char* seq, int seqLen) {
 	int i;
 	for (i = 0; i < seqLen; ++i) {
-		seq[i] -= 'A';
+		if (seq[i] != '_') {
+			seq[i] -= 'A';
+		}
 	}
 }
 
@@ -139,7 +141,7 @@ int main(int argc, char * argv[]) {
 			&tmp);
 	for (i = 1; i < 1267; ++i) {
 		doubleMatrices[i] = (double*) malloc(
-				MATRIX_DIM * MATRIX_DIM * sizeof(double));
+		MATRIX_DIM * MATRIX_DIM * sizeof(double));
 		char name[2000];
 		sprintf(name,
 				"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/%d.dat",
@@ -167,13 +169,13 @@ int main(int argc, char * argv[]) {
 	double shortFactor = 65535.0 / options_short.threshold;
 
 	/*char query[] =
-			"GANRAKHVKYWRCKWWVASPKNLLFQTVHEMALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
-	char db[] =
-			"GANRAKHVKYWRTEANPKTCKWWVASPKSNLLFQTVHIKSEGTYLARNSVSATRDTKKVQDLLSRLQTSEYGLRHIFTDARRNETRTGIEMNALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAQLHIFNGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
-*/
+	 "GANRAKHVKYWRCKWWVASPKNLLFQTVHEMALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
+	 char db[] =
+	 "GANRAKHVKYWRTEANPKTCKWWVASPKSNLLFQTVHIKSEGTYLARNSVSATRDTKKVQDLLSRLQTSEYGLRHIFTDARRNETRTGIEMNALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAQLHIFNGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
+	 */
 	char o1[MAXSEQLEN], o2[MAXSEQLEN];
-	char query[] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-	 char db[] =   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+	char query[] = "AAA";
+	char db[] = "AAA";
 	int ql = strlen(query);
 	int dbl = strlen(db);
 
@@ -212,10 +214,19 @@ int main(int argc, char * argv[]) {
 
 	normalizeSequence(o1, retLen);
 	normalizeSequence(o2, retLen);
-	double* result = EstimatePam(o1, o2, retLen, doubleMatrices, 1266,
-			gapOpenCosts, gapExtCosts, pamDistances, logPAM1Matrix);
+	DayMatrix* DMS = createDayMatrices(gapOpenCosts, gapExtCosts, pamDistances,
+			doubleMatrices, 1266);
+	double result[3];
+
+	char t1[100] = "KPL__ELA";
+	char t2[100] = "SAVLCEDN";
+	int tLen = strlen(t1);
+	normalizeSequence(t1, strlen(t1));
+	normalizeSequence(t2, strlen(t2));
+	EstimatePam(t1, t2, tLen, DMS, 1266, logPAM1Matrix, result);
 	printf("EstimatePam:\n%f\n%f\n%f\n", result[0], result[1], result[2]);
 
+	freeDayMatrices(DMS, 1266);
 	swps3_freeProfileShortSSE(profile);
 
 	return 0;

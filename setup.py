@@ -10,7 +10,7 @@ import subprocess
 #subprocess.Popen("rm -rf *.so", shell=True, executable="/bin/bash")
 
 c_dir = 'c_source/'
-c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c', 'DynProgr_scalar.c']
+c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c', 'DynProgr_scalar.c', 'EstimatePam.c']
 
 setup(
     ext_modules = cythonize([

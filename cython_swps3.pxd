@@ -23,3 +23,15 @@ cdef extern from "Python_extension.h":
                                  double gap_open, double gap_ext)
     int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2, double escore, char *o1,
                         char *o2, double maxerr, double gap_open, double gap_ext)
+
+
+cdef extern from "EstimatePam.h":
+    ctypedef struct DayMatrix:
+        pass
+
+    DayMatrix* createDayMatrices(double* gapOpen, double* gapExt, double* pamDistances, double** matrices, int DMSLen)
+
+    void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
+            double* logPAM1, double* result)
+
+    void freeDayMatrices(DayMatrix* DMS, int DMSLen)

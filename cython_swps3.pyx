@@ -21,13 +21,20 @@ def normalize_sequence(s):
     :return: the transformed string
     """
     ret = ""
-    reg = re.compile('^[A-Z]*$')
+    #TODO remove this error handling?
+    """
+    reg = re.compile('^[A-Z_]*$')
 
     if not reg.match(s):
         raise Exception("Could not normalize '%s', because it contains invalid characters." % s)
+    """
 
     for c in s:
-        ret+=chr(ord(c) - ord('A'))
+        if c != '_':
+            ret += chr(ord(c) - ord('A'))
+        else:
+            #print "The '_' character has not been normalized!"
+            ret += c
 
     return ret
 
@@ -90,15 +97,19 @@ def scale_back(val, factor):
     return val / factor
 
 
-def read_env_json(json_data, columns):
+def read_env_json(json_data, columns="ARNDCQEGHILKMFPSTWYV"):
     """
-    This function is reading an AlignmentEnvironment from a JSON object.
+    This function is reading an AlignmentEnvironment from a JSON object or a file that contains the JSON data
     :param json_data: the JSON object from which we want to read the environment
     :param columns: defines the order of the matrix columns and rows
     :return: the environment
     """
     env = AlignmentEnvironment()
     env.columns = columns
+
+    if isinstance(json_data, basestring):
+        with open(json_data) as f:
+            json_data = json.load(f)
 
     env.gap_open = json_data["GapOpen"]
     env.gap_ext = json_data["GapExt"]
@@ -110,7 +121,6 @@ def read_env_json(json_data, columns):
     for i in range(0, len(env.columns)):
         for j in range(0, len(env.columns)):
             extended_matrix[ord(env.columns[i]) - ord('A')][ord(env.columns[j]) - ord('A')] = compact_matrix[i][j]
-
 
     env.float64_matrix = np.array(extended_matrix, dtype=np.float64)
 
@@ -221,30 +231,39 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     else:
         res = cython_swps3.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
                                        gap_open, gap_ext)
+        max1[0] = ls1
+        max2[0] = ls2
+
     ret.append(res)
-    ret.append(max1[0])
-    ret.append(max2[0])
+    ret.append(max1[0] - 1)
+    ret.append(max2[0] - 1)
 
     return ret
 
-#TODO fix this matrix parameter
-cpdef align_strings(s1, s2, env,np.ndarray[np.double_t,ndim=2] matrix, is_normalized = False, provided_score = None):
-    if provided_score is None:
-        provided_score = align_double(s1, s2, env, is_normalized)
+cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_alignment=None):
+    if provided_alignment is None:
+        provided_alignment = align_double(s1, s2, env, is_normalized, False, is_global, True)
+
 
     if not is_normalized:
         s1 = normalize_sequence(s1)
         s2 = normalize_sequence(s2)
 
+    if not is_global:
+        s1 = s1[provided_alignment[3]:provided_alignment[1] + 1]
+        s2 = s2[provided_alignment[4]:provided_alignment[2] + 1]
+
     #TODO remove these char arrays
     cdef char o1[100010]
     cdef char o2[100010]
 
-    aligned_s1 = ""
-    aligned_s2 = ""
+    aligned_s1 = ''
+    aligned_s2 = ''
+
+    cdef np.ndarray[np.double_t,ndim=2] matrix = env.float64_matrix
 
     max_len = cython_swps3.c_align_strings(<double*> matrix.data, s1, len(s1),
-                                 s2, len(s2), provided_score, o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
+                                 s2, len(s2), provided_alignment[0], o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
 
     #denormalize the result strings and keep the _-s
     for i in range(max_len):
@@ -260,13 +279,15 @@ cpdef align_strings(s1, s2, env,np.ndarray[np.double_t,ndim=2] matrix, is_normal
 
     return [aligned_s1, aligned_s2]
 
-def align_double(s1, s2, env, is_normalized = False, stop_at_threshold = False, is_global = False):
+def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_global=False, calculate_ranges=True):
     """
     :param s1:
     :param s2:
     :param env:
     :param is_normalized:
     :param stop_at_threshold:
+    :param is_global:
+    :param calculate_ranges:
     :return:
     """
     if not is_normalized:
@@ -280,8 +301,22 @@ def align_double(s1, s2, env, is_normalized = False, stop_at_threshold = False, 
         res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
                              env.gap_open, env.gap_ext, env.threshold, is_global)
 
-    #TODO use max1 and max2 values
-    return res[0]
+    if calculate_ranges:
+        if is_global:
+            res.extend([0, 0])
+        else:
+            s1 = s1[res[1]::-1]
+            s2 = s2[res[2]::-1]
+
+            if not stop_at_threshold:
+                reversed = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
+                                             env.gap_open, env.gap_ext, sys.float_info.max, is_global)
+            else:
+                reversed = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
+                                     env.gap_open, env.gap_ext, env.threshold, is_global)
+            res.extend([res[1] - reversed[1], res[2] - reversed[2]])
+
+    return res
 
 def align_scalar_reference_local(s1, s2, env, is_normalized = False):
     """
@@ -396,7 +431,7 @@ cdef class AlignmentProfile:
         if not is_normalized:
             s2 = normalize_sequence(s2)
 
-        ret = cython_swps3.c_align_profile_byte_sse_local(<ProfileByte*> self._c_profileByte, s2, len(s2),
+        ret = cython_swps3.c_align_profile_byte_sse_local(self._c_profileByte, s2, len(s2),
                                                       env.int8_gap_open, env.int8_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -418,7 +453,7 @@ cdef class AlignmentProfile:
         if not is_normalized:
             s2 = normalize_sequence(s2)
 
-        ret = cython_swps3.c_align_profile_short_sse_local(<ProfileShort*> self._c_profileShort,
+        ret = cython_swps3.c_align_profile_short_sse_local(self._c_profileShort,
                                                        s2, len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -470,13 +505,13 @@ class AlignmentEnvironment:
 
         factor = self.byte_factor()
         self.int8_matrix = np.vectorize(lambda x: scale_to_byte(x, factor))(self.float64_matrix ).astype(np.int8)
-        self.int8_gap_open =  scale_to_byte(self.gap_open, factor)
-        self.int8_gap_ext =  scale_to_byte(self.gap_ext, factor)
+        self.int8_gap_open = scale_to_byte(self.gap_open, factor)
+        self.int8_gap_ext = scale_to_byte(self.gap_ext, factor)
 
         factor = self.short_factor()
         self.int16_matrix = np.vectorize(lambda x: scale_to_short(x, factor))(self.float64_matrix ).astype(np.int16)
-        self.int16_gap_open =  scale_to_short(self.gap_open, factor)
-        self.int16_gap_ext =  scale_to_short(self.gap_ext, factor)
+        self.int16_gap_open = scale_to_short(self.gap_open, factor)
+        self.int16_gap_ext = scale_to_short(self.gap_ext, factor)
 
     #calculates the byte scaling factor
     def byte_factor(self):
@@ -497,3 +532,60 @@ class AlignmentEnvironment:
         """
         self.threshold = new_threshold
         self.create_scaled_matrices()
+
+
+cdef class MutipleAlEnv:
+
+    cdef cython_swps3.DayMatrix* _c_dayMatrices
+    cdef int dms_len
+    cdef log_pam1
+
+    def __init__(self, envs, log_pam1):
+        self.create_day_matrices(envs)
+        self.log_pam1 = log_pam1
+
+    def __cinit__(self):
+        self._c_dayMatrices = NULL
+
+    def __dealloc__(self):
+        self.free()
+
+    def create_day_matrices(self, envs):
+        self.free()
+
+        self.dms_len = len(envs)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] gap_open = np.empty(shape=(self.dms_len + 1))
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] gap_ext = np.empty(shape=(self.dms_len + 1))
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] pam_dist = np.empty(shape=(self.dms_len + 1))
+        cdef np.ndarray[np.uint64_t, ndim=1, mode="c"] matrices = np.empty(shape=(self.dms_len + 1), dtype=np.uint64)
+
+        for i in range(1, self.dms_len + 1):
+            gap_open[i] = envs[i-1].gap_open
+            gap_ext[i] = envs[i-1].gap_ext
+            pam_dist[i] = envs[i-1].pam
+            matrices[i] = envs[i-1].float64_matrix.ctypes.data
+
+        self._c_dayMatrices = cython_swps3.createDayMatrices(<double*> gap_open.data, <double*> gap_ext.data,
+                    <double*> pam_dist.data, <double**> matrices.data, self.dms_len)
+
+    def estimate_pam(self, s1, s2, is_normalized=False, is_global=False):
+        #TODO check if the lengths of o1 and o2 are equal?
+        if not is_normalized:
+            s1 = normalize_sequence(s1)
+            s2 = normalize_sequence(s2)
+
+        cdef double result[3]
+        cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
+
+        cython_swps3.EstimatePam(s1, s2, len(s1), self._c_dayMatrices, self.dms_len, <double*> logpam.data, result)
+        ret = [0.0] * 3
+        ret[0] = result[0]
+        ret[1] = result[1]
+        ret[2] = result[2]
+
+        return ret
+
+
+    def free(self):
+        if self._c_dayMatrices is not NULL:
+            cython_swps3.freeDayMatrices(self._c_dayMatrices, self.dms_len)

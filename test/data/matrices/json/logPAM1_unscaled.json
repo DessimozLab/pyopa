@@ -1,8 +1,9 @@
 {
-  "GapExt": -999999999,
-  "GapOpen": -9999999999,
-  "PamDistance": 1,
-  "Scores": [
+  "column_order": ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V"],
+  "gap_ext": -999999999,
+  "gap_open": -9999999999,
+  "pam_distance": 1,
+  "scores": [
     [
       -94849167.5024,
       4544331.5392,

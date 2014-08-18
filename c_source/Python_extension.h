@@ -17,12 +17,12 @@
 #define MAXMUTDIM       130
 
 #define MMAX(a,b) ((a)>(b)?(a):(b))
-#define ALIGN_TO(al, typ, ptr) ptr = (typ*)(((unsigned long)ptr)/(al)*(al)+(al));
+/*#define ALIGN_TO(al, typ, ptr) ptr = (typ*)(((unsigned long)ptr)/(al)*(al)+(al));*/
 
-typedef union {
+/*typedef union {
 	double* ps;
 	char* ds;
-} SeqCont;
+} SeqCont;*/
 
 static double coldel[MAXSEQLEN+1], S[MAXSEQLEN+1];
 static int DelFrom[MAXSEQLEN+1];

@@ -28,7 +28,8 @@ typedef struct DayMatrix {
 	double* Simi;
 } DayMatrix;
 
-DayMatrix* createDayMatrices(double* gapOpen, double* gapExt, double* pamDistances, double** matrices, int DMSLen);
+DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
+		double* pamDistances, double** matrices, int DMSLen);
 
 void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 		double* logPAM1, double* result);

@@ -108,7 +108,8 @@ class AlignTest(unittest.TestCase):
             s1 = self.sequences_normalized[r.s1_id - 1]
             s2 = self.sequences_normalized[r.s2_id - 1]
             env = self.alignment_environments[r.matrix_nr - 1]
-            env.set_threshold(r.threshold)
+            env.threshold = r.threshold
+            env.create_scaled_matrices()
 
             #profile = self.alignment_profiles[r.s1_id]
             profile = cython_swps3.AlignmentProfile()
@@ -156,8 +157,9 @@ class AlignTest(unittest.TestCase):
                 self.assertGreaterEqual(short_result, sys.float_info.max)
             else:
                 if short_result < r.score_short and (r.score_short - short_result) > 0.01:
-                    print "Warning: python short score(%f) is less than darwin's at id: %d!" \
-                          % (short_result, completed + 1)
+                    print "Warning: python short score(%f) is less than darwin's but still bigger" \
+                          " than the double score(%f) at id: %d!" \
+                          % (short_result, r.score_double, completed + 1)
                 else:
                     self.assertAlmostEqual(short_result, r.score_short,
                                        places=7,

@@ -21,13 +21,10 @@ def normalize_sequence(s):
     :return: the transformed string
     """
     ret = ""
-    #TODO remove this error handling?
-    """
     reg = re.compile('^[A-Z_]*$')
 
     if not reg.match(s):
         raise Exception("Could not normalize '%s', because it contains invalid characters." % s)
-    """
 
     for c in s:
         if c != '_':
@@ -97,24 +94,13 @@ def scale_back(val, factor):
     return val / factor
 
 
-def read_env_json(json_data, columns="ARNDCQEGHILKMFPSTWYV"):
-    """
-    This function is reading an AlignmentEnvironment from a JSON object or a file that contains the JSON data
-    :param json_data: the JSON object from which we want to read the environment
-    :param columns: defines the order of the matrix columns and rows
-    :return: the environment
-    """
+def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **kwargs):
     env = AlignmentEnvironment()
-    env.columns = columns
-
-    if isinstance(json_data, basestring):
-        with open(json_data) as f:
-            json_data = json.load(f)
-
-    env.gap_open = json_data["GapOpen"]
-    env.gap_ext = json_data["GapExt"]
-    env.pam = json_data["PamDistance"]
-    compact_matrix = json_data["Scores"]
+    env.columns = column_order
+    env.gap_open = gap_open
+    env.gap_ext = gap_ext
+    env.pam = pam_distance
+    compact_matrix = scores
 
     #convert the compact matrix into C compatible one by extending it to a 26x26 one
     extended_matrix = [[0 for x in xrange(26)] for x in xrange(26)]
@@ -129,6 +115,20 @@ def read_env_json(json_data, columns="ARNDCQEGHILKMFPSTWYV"):
     return env
 
 
+def read_env_json(json_data):
+    """
+    This function is reading an AlignmentEnvironment from a JSON object or a file that contains the JSON data
+    :param json_data: the JSON object from which we want to read the environment
+    :param columns: defines the order of the matrix columns and rows
+    :return: the environment
+    """
+    if isinstance(json_data, basestring):
+        with open(json_data) as f:
+            json_data = json.load(f)
+
+    return create_environment(**json_data)
+
+
 def read_all_env_json(file_loc):
     """
     Reads all of the alignment environments from the given json file.
@@ -136,17 +136,13 @@ def read_all_env_json(file_loc):
     :param file_loc: the location where the matrices are stored
     :return: a list of AlignmentEnvironments
     """
-
     with open(file_loc) as json_file:
         json_data = json.load(json_file)
 
     ret = []
 
-    #read_env_json works on strings instead of char arrays
-    columns = ''.join(json_data['AAorder'])
-
-    for matrix_json in json_data['Matrices']:
-        ret.append(read_env_json(matrix_json, columns))
+    for matrix_json in json_data['matrices']:
+        ret.append(read_env_json(matrix_json))
 
     return ret
 
@@ -240,6 +236,7 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
 
     return ret
 
+
 cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_alignment=None):
     if provided_alignment is None:
         provided_alignment = align_double(s1, s2, env, is_normalized, False, is_global, True)
@@ -308,6 +305,7 @@ def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_g
             s1 = s1[res[1]::-1]
             s2 = s2[res[2]::-1]
 
+            #TODO do not allow stop at threshold
             if not stop_at_threshold:
                 reversed = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
                                              env.gap_open, env.gap_ext, sys.float_info.max, is_global)
@@ -318,7 +316,7 @@ def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_g
 
     return res
 
-def align_scalar_reference_local(s1, s2, env, is_normalized = False):
+def align_scalar_reference_local(s1, s2, env, is_normalized=False):
     """
     This is a simpler interface to the scalar alignment function written in C by using the AlignmentEnvironment python
     class. This is a reference implementation and not vectorized.
@@ -524,14 +522,6 @@ class AlignmentEnvironment:
     def short_factor(self):
         return 65535.0 / self.threshold
 
-    def set_threshold(self, new_threshold):
-        """
-        Sets the new threshold and calculates the int8 and int16 matrices again with the new threshold
-        :param new_threshold: the new threshold to be used
-        :return: nothing
-        """
-        self.threshold = new_threshold
-        self.create_scaled_matrices()
 
 
 cdef class MutipleAlEnv:
@@ -570,6 +560,7 @@ cdef class MutipleAlEnv:
 
     def estimate_pam(self, s1, s2, is_normalized=False, is_global=False):
         #TODO check if the lengths of o1 and o2 are equal?
+        #TODO use is_global
         if not is_normalized:
             s1 = normalize_sequence(s1)
             s2 = normalize_sequence(s2)

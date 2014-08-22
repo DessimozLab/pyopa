@@ -4,7 +4,7 @@ import csv
 import cython_swps3
 import sys
 import json
-import resource
+import threading
 
 
 class DarwinResult:
@@ -43,7 +43,8 @@ def write_all_env_files(all_envs):
 class AlignTest(unittest.TestCase):
 
     def setUp(self):
-        resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        self.precision = 10
+        #resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         with open(os.path.dirname(__file__) + '/data/testseqs.txt') as f:
             self.sequences = f.readlines()
@@ -98,7 +99,13 @@ class AlignTest(unittest.TestCase):
                     self.alignment_profiles[curr.s1_id] = p
                 '''
 
-    def test_align_scalar(self):
+    def test_align(self):
+        threading.stack_size(100000000)
+        t = threading.Thread(None, self._align_t, 'Aligning Thread')
+        t.start()
+        t.join()
+
+    def _align_t(self):
         print 'Running alignment tests...'
         completed = 0
         max_alignments = len(self.darwin_results)
@@ -127,21 +134,22 @@ class AlignTest(unittest.TestCase):
                 self.assertEqual(aligned_strings[0], r.als1)
                 self.assertEqual(aligned_strings[1], r.als2)
                 self.assertAlmostEqual(ep_result[0], r.ep_sim,
+                                       places=self.precision,
                                        msg='Incorrect EstimatePam similarity score %.8f.'
                                            ' The correct result is: % 8f, test id: %d' %
                                            (ep_result[0], r.ep_sim, completed + 1))
-                self.assertAlmostEqual(ep_result[1], r.ep_pamn)
-                self.assertAlmostEqual(ep_result[2], r.ep_var)
+                self.assertAlmostEqual(ep_result[1], r.ep_pamn, places=self.precision)
+                self.assertAlmostEqual(ep_result[2], r.ep_var, places=self.precision)
 
-            self.assertAlmostEqual(scalar_result_reference, r.score_double, places=7,
+            self.assertAlmostEqual(scalar_result_reference, r.score_double, places=self.precision,
                                    msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'
                                        % (scalar_result_reference, r.score_double, completed + 1))
             self.assertGreaterEqual(short_result, r.score_double,
-                                    "Short score must be greater or equal than double score.")
+                                    msg="Short score must be greater or equal than double score.")
             self.assertGreaterEqual(byte_result, r.score_double,
-                                    "Byte score must be greater or equal than double score.")
+                                    msg="Byte score must be greater or equal than double score.")
             self.assertAlmostEqual(double_result, r.score_double,
-                                   places=7,
+                                   places=self.precision,
                                    msg='Incorrect double score: %.8f. The correct score is: %.8f, test id: %d' %
                                    (double_result, r.score_double, completed + 1))
             '''
@@ -157,14 +165,14 @@ class AlignTest(unittest.TestCase):
                 self.assertGreaterEqual(short_result, sys.float_info.max)
             else:
                 if short_result < r.score_short and (r.score_short - short_result) > 0.01:
-                    print "Warning: python short score(%f) is less than darwin's but still bigger" \
+                    print "Warning: python short score(%f) is less than darwin's, but still bigger" \
                           " than the double score(%f) at id: %d!" \
                           % (short_result, r.score_double, completed + 1)
                 else:
                     self.assertAlmostEqual(short_result, r.score_short,
-                                       places=7,
-                                       msg='Incorrect short score: %.8f. The correct score is: %.8f, test id: %d' %
-                                       (short_result, r.score_short, completed + 1))
+                                           places=self.precision,
+                                           msg='Incorrect short score: %.8f. The correct score is: %.8f, test id: %d' %
+                                               (short_result, r.score_short, completed + 1))
 
             completed += 1
             if completed % progress_step == 0:

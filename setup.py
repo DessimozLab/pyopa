@@ -10,7 +10,8 @@ import subprocess
 #subprocess.Popen("rm -rf *.so", shell=True, executable="/bin/bash")
 
 c_dir = 'c_source/'
-c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c', 'DynProgr_scalar.c', 'EstimatePam.c']
+c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c',
+             'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c']
 
 setup(
     ext_modules = cythonize([
@@ -19,8 +20,8 @@ setup(
 		sources=["cython_swps3.pyx"] + map(lambda c: c_dir + c, c_sources),
 		#libraries=["swps3"],
 		#extra_link_args=["-L../"],
-        #extra_compile_args = ['-DPY_DEBUG'],
-		include_dirs=[c_dir]
+        extra_compile_args = ['-DPY_DEBUG'],
+		include_dirs=[c_dir, numpy.get_include()]
 	)]
     ),
     name='cython_swps3',

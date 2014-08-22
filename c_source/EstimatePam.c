@@ -94,7 +94,8 @@ static void mexp(double *x2k, double *t, double *c, double *r, int n)
 	}
 
 	/* Compute k, number of powerings to leave norm<0.01 */
-	k = ilogb(200 * norm);
+	/*k = ilogb(200 * norm);*/
+	k = (int) (log(abs(200 * norm)) / log(FLT_RADIX));
 	if (k < 0)
 		k = 0;
 	/*if( k >= 1023 ) userror("cannot compute exp of a matrix");*/
@@ -585,8 +586,11 @@ void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 }
 
 DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
-		double* pamDistances, double** matrices, int DMSLen) {
+		double* pamDistances, long long* matrix_pointers, int DMSLen) {
 	int i, j;
+#ifdef PY_DEBUG
+	int k, l;
+#endif
 	/* indexing starts from one */
 	DayMatrix* ret = (DayMatrix*) malloc((DMSLen + 1) * sizeof(DayMatrix));
 
@@ -594,12 +598,11 @@ DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 #ifdef PY_DEBUG
 		printf("Creating day matrix:\n");
 		printf("FixedDel = %f\nIncDel = %f\nPamNumber = %f\n", gapOpen[i], gapExt[i], pamDistances[i]);
-		printf("Simi:\n");
-		int k, l;
+		printf("Simi at %lx:\n", (long)matrix_pointers[i]);
 		for(k = 0; k < MATRIX_DIM; ++k) {
 			printf("\t[");
 			for(l = 0; l < MATRIX_DIM; ++l) {
-				printf("%.3f, ", matrices[i][k * MATRIX_DIM + l]);
+				printf("%.3f, ", ((double*)(matrix_pointers[i]))[k * MATRIX_DIM + l]);
 			}
 			printf("]\n");
 		}
@@ -610,7 +613,7 @@ DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 		ret[i].Simi = (double*) malloc(
 		MATRIX_DIM * MATRIX_DIM * sizeof(double));
 		for (j = 0; j < MATRIX_DIM * MATRIX_DIM; ++j) {
-			ret[i].Simi[j] = matrices[i][j];
+			ret[i].Simi[j] = ((double*)(matrix_pointers[i]))[j];
 		}
 	}
 

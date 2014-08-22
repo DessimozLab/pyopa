@@ -95,6 +95,17 @@ def scale_back(val, factor):
 
 
 def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **kwargs):
+
+    reg = re.compile('^[A-Z]*$')
+    column_order = ''.join(column_order)
+
+    if not reg.match(column_order):
+        raise Exception("Could not create environment with columns '%s', because it contains invalid characters." %
+                        column_order)
+
+    #TODO check whether gap_open <= gap_ext?
+
+
     env = AlignmentEnvironment()
     env.columns = column_order
     env.gap_open = gap_open

@@ -9,6 +9,7 @@
 #define ESTIMATEPAM_H_
 
 #include "Python_extension.h"
+#include <stdint.h>
 
 #define MAXPOINTS 7
 
@@ -29,7 +30,7 @@ typedef struct DayMatrix {
 } DayMatrix;
 
 DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
-		double* pamDistances, double** matrices, int DMSLen);
+		double* pamDistances, long long* matrix_pointers, int DMSLen);
 
 void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 		double* logPAM1, double* result);

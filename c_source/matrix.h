@@ -31,7 +31,7 @@
 #define MATRIX_H
 
 #include "swps3.h"
-#include <sys/types.h>
+#include <stdint.h>
 
 typedef int8_t * BMatrix;
 typedef int16_t * SMatrix;

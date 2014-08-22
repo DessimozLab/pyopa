@@ -14,9 +14,11 @@
 #include "DynProgr_sse_byte.h"
 #include "DynProgr_sse_short.h"
 
+/* According to http://stackoverflow.com/questions/1919183/how-to-allocate-and-free-aligned-memory-in-c */
+
 void *aligned_malloc(int align, int size) {
-	void *mem = malloc(size + align + sizeof(void*));
-	void **ptr = (void**) ((long) (mem + align + sizeof(void*)) & ~(align - 1));
+	char *mem = malloc(size + align + sizeof(char*));
+	char **ptr = (char**) ((long) (mem + align + sizeof(char*)) & ~(align - 1));
 	ptr[-1] = mem;
 	return ptr;
 }
@@ -51,12 +53,13 @@ void debug_alignment(char* name, void* profile, const char* s2, int ls2,
 void debug_profile(char* name, void* pb, const char* q, int queryLen,
 		void* matrix, int isShort) {
 	char* query = denormalize(q, queryLen);
+	int i, j;
 
 	printf(
 			"Successfully created %s profile at %lu from query = %s, len(query) = %d\n",
 			name, (unsigned long) pb, query, queryLen);
 	printf("The matrix used for the %s profile: \n", name);
-	int i, j;
+
 	for (i = 0; i < 26; ++i) {
 		printf("[");
 		for (j = 0; j < 26; ++j) {
@@ -150,6 +153,7 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 	double S1[MAXSEQLEN + 1], coldel1[MAXSEQLEN + 1];
 	double Slen2i, maxs, t;
 	char rs1[2 * MAXSEQLEN], rs2[MAXSEQLEN], *prs1, *prs2;
+	double tot;
 	/*int Global = 2;*/
 	/* this NoSelf could be a parameter */
 	/*int NoSelf = 0;*/
@@ -197,7 +201,6 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 
 	/* equal length, try to see if there is a match without deletions */
 	if (len1 == len2 && s1 != s2) {
-		double tot;
 		for (i = tot = 0; i < len1; i++)
 			tot += /*DMScore(s1[i],s2[i],matrix)*/matrix[s1[i] * MATRIX_DIM
 					+ s2[i]];
@@ -320,24 +323,11 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 double c_align_double_local(double* matrix, const char *s1, int ls1,
 		const char *s2, int ls2, double gap_open, double gap_ext,
 		double threshold, int* max1, int* max2) {
-#ifdef PY_DEBUG
-	char* ns1 = denormalize(s1, ls1);
-	char* ns2 = denormalize(s2, ls2);
-
-	printf("c_align_double: s1 = %s, len(s1) = %d, s2 = %s, len(s2) = %d, gap_open = %f, gap_ext = %f, threshold = %f\n",
-			ns1, ls1, ns2, ls2, gap_open, gap_ext, threshold);
-
-	free(ns1);
-	free(ns2);
-#endif
 	unsigned int i, j, k;
 	int AToInts2[MAXSEQLEN + 1];
 
-	double DelFixed, DelIncr, *Score_s1;
+	double DelFixed = gap_open, DelIncr = gap_ext, *Score_s1;
 	double Tcd, t, MaxScore, Sj, Sj1, Tj, Tj1, Trd;
-
-	DelFixed = gap_open;
-	DelIncr = gap_ext;
 
 	/* the segment length */
 	unsigned int segLength = (ls1 + 1) / 2;
@@ -387,6 +377,17 @@ double c_align_double_local(double* matrix, const char *s1, int ls1,
 	__m128d m128_new_opt; /* the new optimal score */
 	__m128d m128_new_rd; /* the new row deletion score */
 	__m128d m128_new_cd = _mm_setzero_pd();
+
+#ifdef PY_DEBUG
+	char* ns1 = denormalize(s1, ls1);
+	char* ns2 = denormalize(s2, ls2);
+
+	printf("c_align_double: s1 = %s, len(s1) = %d, s2 = %s, len(s2) = %d, gap_open = %f, gap_ext = %f, threshold = %f\n",
+			ns1, ls1, ns2, ls2, gap_open, gap_ext, threshold);
+
+	free(ns1);
+	free(ns2);
+#endif
 
 	MaxScore = 0;
 	S[0] = coldel[0] = 0;

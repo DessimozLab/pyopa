@@ -43,13 +43,6 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/select.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <string.h>
-#include <assert.h>
 #include <float.h>
 #include "Python_extension.h"
 #include "EstimatePam.h"
@@ -228,6 +221,11 @@ int main(int argc, char * argv[]) {
 
 	freeDayMatrices(DMS, 1266);
 	swps3_freeProfileShortSSE(profile);
+
+	printf("Double pointer size:%d\n", sizeof(double*));
+	printf("Char pointer size:%d\n", sizeof(char*));
+	printf("Int size:%d\n", sizeof(int));
+
 
 	return 0;
 }

@@ -32,7 +32,7 @@
 #include "debug.h"
 #include "matrix.h"
 
-#define INFINITY (1.0/0.0)
+#define INFINITY (1.0/0.000000000000000000000000000000000000000001)
 EXPORT double swps3_alignScalar( const DMatrix matrix, const char *s1, int ls1, const char *s2, int ls2, Options *options)
 { 
 static double coldel[MAX_SEQ_LENGTH], S[MAX_SEQ_LENGTH];

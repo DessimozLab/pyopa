@@ -11,7 +11,7 @@ import re
 import ctypes
 
 
-def normalize_sequence(s):
+def normalize_sequence(s, allow_underscore=False):
     """
     Subtracts the ASCII value of 'A' from every character in the given string. This is necessary because the C core
     is working on these kind of inputs. Normally you should not call this function since it is automatically called
@@ -21,7 +21,10 @@ def normalize_sequence(s):
     :return: the transformed string
     """
     ret = ""
-    reg = re.compile('^[A-Z_]*$')
+    if allow_underscore:
+        reg = re.compile('^[A-Z_]*$')
+    else:
+        reg = re.compile('^[A-Z]*$')
 
     if not reg.match(s):
         raise Exception("Could not normalize '%s', because it contains invalid characters." % s)
@@ -103,6 +106,9 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **
         raise Exception("Could not create environment with columns '%s', because it contains invalid characters." %
                         column_order)
 
+    if len(scores) != len(column_order):
+        raise Exception('The dimension of the matrix is not consistent with the column order')
+
     #TODO check whether gap_open <= gap_ext?
 
 
@@ -116,6 +122,8 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **
     #convert the compact matrix into C compatible one by extending it to a 26x26 one
     extended_matrix = [[0 for x in xrange(26)] for x in xrange(26)]
     for i in range(0, len(env.columns)):
+        if len(compact_matrix[i]) != len(column_order):
+            raise Exception('The dimension of the matrix is not consistent with the column order')
         for j in range(0, len(env.columns)):
             extended_matrix[ord(env.columns[i]) - ord('A')][ord(env.columns[j]) - ord('A')] = compact_matrix[i][j]
 
@@ -158,40 +166,42 @@ def read_all_env_json(file_loc):
     return ret
 
 
-def align_short(s1, s2, env_file, is_normalized = False):
+def align_short(s1, s2, env, is_normalized = False):
     """
     Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
     :param s2: second string of the alignment
-    :param env_file: file that contains the matrix in JSON format
+    :param env: file that contains the matrix in JSON format
     :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the short estimation of the score
     """
     p = AlignmentProfile()
-    e = read_env_json(env_file)
-    p.create_profiles(s1, e, is_normalized)
+    if isinstance(env, basestring):
+        env = read_env_json(env)
+    p.create_profiles(s1, env, is_normalized)
 
-    return p.align_short(s2, e, is_normalized)
+    return p.align_short(s2, env, is_normalized)
 
 
-def align_byte(s1, s2, env_file, is_normalized = False):
+def align_byte(s1, s2, env, is_normalized=False):
     """
     Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
     :param s2: second string of the alignment
-    :param env_file: file that contains the matrix in JSON format
+    :param env: file that contains the matrix in JSON format
     :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the byte estimation of the score
     """
     p = AlignmentProfile()
-    e = read_env_json(env_file)
-    p.create_profiles(s1, e, is_normalized)
+    if isinstance(env, basestring):
+        env = read_env_json(env)
+    p.create_profiles(s1, env, is_normalized)
 
-    return p.align_byte(s2, e, is_normalized)
+    return p.align_byte(s2, env, is_normalized)
 
 
 cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,ndim=2] matrix, const char *s1,
@@ -230,6 +240,9 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     cdef int max1[1]
     cdef int max2[1]
 
+    max1[1] = 0
+    max2[2] = 0
+
     ret = []
 
     if not is_global:
@@ -251,7 +264,9 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
 cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_alignment=None):
     if provided_alignment is None:
         provided_alignment = align_double(s1, s2, env, is_normalized, False, is_global, True)
-
+    elif len(provided_alignment) != 5:
+        raise Exception('The provided alignment is invalid.'
+                        ' It should contain the score, and the ranges for both sequences.')
 
     if not is_normalized:
         s1 = normalize_sequence(s1)
@@ -449,7 +464,7 @@ cdef class AlignmentProfile:
         return scale_back(ret, env.byte_factor())
 
 
-    cpdef align_short(self, s2, env, is_normalized = False):
+    cpdef align_short(self, s2, env, is_normalized=False):
         """
         Aligns the string s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using short
         SSE alignment.
@@ -491,17 +506,17 @@ class AlignmentEnvironment:
         #This gapOpen/Ext and matrix is used by the scalar alignment function. These are directly passed to the C core
         self.gap_open = 0.0
         self.gap_ext = 0.0
-        self.float64_matrix = np.ndarray(shape=(26, 26), dtype=np.float64)
+        self.float64_matrix = np.zeros(shape=(26, 26), dtype=np.float64)
 
         #This gapOpen/Ext and matrix is used by the short alignment function. These are directly passed to the C core
         #and calculated from the scalar matrix and gap costs (by a simple scaling)
-        self.int16_matrix = np.ndarray(shape=(26, 26), dtype=np.int16)
+        self.int16_matrix = np.zeros(shape=(26, 26), dtype=np.int16)
         self.int16_gap_open = 0.0
         self.int16_gap_ext = 0.0
 
         #This gapOpen/Ext and matrix is used by the byte alignment function. These are directly passed to the C core
         #and calculated from the scalar matrix and gap costs (by a simple scaling)
-        self.int8_matrix = np.ndarray(shape=(26, 26), dtype=np.int8)
+        self.int8_matrix = np.zeros(shape=(26, 26), dtype=np.int8)
         self.int8_gap_open = 0.0
         self.int8_gap_ext = 0.0
 
@@ -569,12 +584,12 @@ cdef class MutipleAlEnv:
         self._c_dayMatrices = cython_swps3.createDayMatrices(<double*> gap_open.data, <double*> gap_ext.data,
                     <double*> pam_dist.data, <double**> matrices.data, self.dms_len)
 
-    def estimate_pam(self, s1, s2, is_normalized=False, is_global=False):
-        #TODO check if the lengths of o1 and o2 are equal?
-        #TODO use is_global
+    def estimate_pam(self, s1, s2, is_normalized=False):
+        if len(s1) != len(s2):
+            raise Exception('The length of s1 and s2 must be equal!')
         if not is_normalized:
-            s1 = normalize_sequence(s1)
-            s2 = normalize_sequence(s2)
+            s1 = normalize_sequence(s1, True)
+            s2 = normalize_sequence(s2, True)
 
         cdef double result[3]
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix

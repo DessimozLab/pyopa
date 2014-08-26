@@ -20,7 +20,7 @@ setup(
 		sources=["cython_swps3.pyx"] + map(lambda c: c_dir + c, c_sources),
 		#libraries=["swps3"],
 		#extra_link_args=["-L../"],
-        extra_compile_args = ['-DPY_DEBUG'],
+        #extra_compile_args = ['-DPY_DEBUG'],
 		include_dirs=[c_dir, numpy.get_include()]
 	)]
     ),

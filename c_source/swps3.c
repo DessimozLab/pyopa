@@ -219,6 +219,9 @@ int main(int argc, char * argv[]) {
 	EstimatePam(t1, t2, tLen, DMS, 1266, logPAM1Matrix, result);
 	printf("EstimatePam:\n%f\n%f\n%f\n", result[0], result[1], result[2]);
 
+	double* generated = CreateOrigDayMatrix(logPAM1Matrix, 250);
+
+	free(generated);
 	freeDayMatrices(DMS, 1266);
 	swps3_freeProfileShortSSE(profile);
 

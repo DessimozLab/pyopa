@@ -55,8 +55,8 @@ class AlignTest(unittest.TestCase):
         self.alignment_environments = cython_swps3.read_all_env_json(
             os.path.dirname(__file__) + '/data/matrices/json/all_matrices.json')
 
-        log_pam1 = cython_swps3.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
-        self.dms = cython_swps3.MutipleAlEnv(self.alignment_environments, log_pam1)
+        self.log_pam1 = cython_swps3.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
+        self.dms = cython_swps3.MutipleAlEnv(self.alignment_environments, self.log_pam1)
 
         """
         write_all_env_files(self.alignment_environments)
@@ -178,6 +178,20 @@ class AlignTest(unittest.TestCase):
             if completed % progress_step == 0:
                 print '%d%% completed' % (completed / progress_step)
 
+    def test_generated_envs(self):
+        print 'Testing generated matrices'
+        generated_envs = cython_swps3.generate_all_env(self.log_pam1, 1266)
+        for i in range(1266):
+            curr_ref = self.alignment_environments[i]
+            curr_gen = generated_envs[i]
+            self.assertAlmostEqual(curr_ref.pam, curr_gen.pam)
+            self.assertAlmostEqual(curr_ref.threshold, curr_gen.threshold)
+            self.assertAlmostEqual(curr_ref.gap_open, curr_gen.gap_open)
+            self.assertAlmostEqual(curr_ref.gap_ext, curr_gen.gap_ext)
+            self.assertEqual(curr_ref.columns, curr_gen.columns)
+            for j in range(26):
+                for k in range(26):
+                    self.assertAlmostEqual(curr_ref.float64_matrix[j][k], curr_gen.float64_matrix[j][k])
 
 if __name__ == '__main__':
     unittest.main()

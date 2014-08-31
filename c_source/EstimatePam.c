@@ -613,7 +613,7 @@ DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 		ret[i].Simi = (double*) malloc(
 		MATRIX_DIM * MATRIX_DIM * sizeof(double));
 		for (j = 0; j < MATRIX_DIM * MATRIX_DIM; ++j) {
-			ret[i].Simi[j] = ((double*)(matrix_pointers[i]))[j];
+			ret[i].Simi[j] = ((double*) (matrix_pointers[i]))[j];
 		}
 	}
 
@@ -628,3 +628,203 @@ void freeDayMatrices(DayMatrix* DMS, int DMSLen) {
 	free(DMS);
 }
 
+void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
+
+/*  Computations following the paper:
+
+ A Model of Evolutionary Change in Proteins by
+ M.O. Dayhoff, R.M. Schwartz and B.C. Orcutt.
+
+ and our own limiting computation	Gaston H. Gonnet (Sep 1990) */
+
+{
+	double AA[MAXMUTDIM][MAXMUTDIM], norm, RelMut[MAXMUTDIM], RowsA[MAXMUTDIM];
+	double a, b, lambda, M[MAXMUTDIM * MAXMUTDIM], MP[MAXMUTDIM * MAXMUTDIM],
+			t1[MAXMUTDIM * MAXMUTDIM], t2[MAXMUTDIM * MAXMUTDIM];
+	double k, pam1, pam2, tot, v, maxs, t;
+	/*ALGEB p, res, logpam;*/
+	int i, j, n;
+	double *dm;
+	int d1, d2;
+
+	d1 = d2 = 26;
+
+	/*if (ID(Mutations) != LIST)
+	 userror2(Mutations, "invalid argument");*/
+	n = /*LENGTH(Mutations[1]) - 1;*/d1;
+	/*if (numeric(PamNum))*/
+	pam1 = pam2 = PamNum;
+	/*else {
+	 pam1 = DBL(A(PamNum[1]));
+	 pam2 = DBL(A(PamNum[2]));
+	 }*/
+	/*if (pam1 <= 0 || pam2 > 10000 || pam1 > pam2 || (pam1 < pam2 && pam1 != 1))
+	 userror("incorrect Pam number");
+	 if (n < 1 || n > MAXMUTDIM)
+	 userror2(Mutations, "dimension out of range");*/
+
+	/*if (LastMutMatrix == Mutations && LastAAFreq == AaCounts
+	 && LastLogPAM1 == valuenv_ININ(ININlogPAM1)) {*/
+	/* Dayhoff was called earlier with the same Mutations/AaCounts */
+	/*ListToArray(LastLogPAM1, M, n, n);
+	 logpam = LastLogPAM1;
+	 goto resume;
+	 }*/
+
+	/*if (AaCounts == 0 *//* signal that a logPAM1 matrix is passed *//*) {*/
+	/*ListToArray(Mutations, M, n, n);
+	 LastAAFreq = 0;
+	 logpam = Mutations;
+	 goto resume;
+	 }
+
+	 for (i = 0; i < n; i++) {
+	 if (ID(Mutations) != LIST)
+	 userror("CreateOrigDayMatrix: invalid mutations matrix");
+	 p = A(Mutations[1][i + 1]);
+	 if (ID(p) == LISTNUM)
+	 for (j = 0; j <= i; j++) {
+	 AA[i][j] = AA[j][i] = D(p, j + 1);
+	 if (AA[i][j] < 0)
+	 userror("negative entries in Mutations matrix");
+	 }
+	 else if (ID(p) == LIST)
+	 for (j = 0; j <= i; j++) {
+	 AA[i][j] = AA[j][i] = DBL(A(p[1][j + 1]));
+	 if (AA[i][j] < 0)
+	 userror("negative entries in Mutations matrix");
+	 }
+	 else
+	 userror("CreateOrigDayMatrix: invalid mutations matrix");
+	 }
+	 norm = 0;
+
+	 for (i = 0; i < n; i++) {
+	 RowsA[i] = 0.0;
+	 for (j = 0; j < n; j++)
+	 RowsA[i] += AA[i][j];
+	 if (ID(AaCounts) == LIST)
+	 NorFre[i] = DBL(A(AaCounts[1][i + 1]));
+	 else
+	 NorFre[i] = D(AaCounts, i + 1);
+	 if (NorFre[i] <= 0)
+	 userror("non-positive frequecies");
+	 norm += NorFre[i];
+	 }
+
+	 for (i = 0; i < n; i++) {
+	 NorFre[i] /= norm;
+	 RelMut[i] = RowsA[i] / NorFre[i];
+	 }*/
+
+	/* PAM 1 matrix; solve the equation for lambda */
+	/*a = b = 0.0;
+	 for (i = 0; i < n; i++) {
+	 a += NorFre[i];
+	 b -= NorFre[i] * RelMut[i];
+	 }*/
+	/* 100*(a + lambda*b) = 99 */
+	/*lambda = (0.99 - a) / b;
+
+	 for (i = 0; i < n; i++) {
+	 for (j = 0; j < n; j++)
+	 M[i * n + j] = lambda * RelMut[j] * AA[i][j] / RowsA[j];
+	 M[i * (n + 1)] = -lambda * RelMut[i];
+	 }
+	 assign(ININlogPAM1, NewMatrix(M, n, n), 0);
+	 LastMutMatrix = Mutations;
+	 LastAAFreq = AaCounts;
+	 logpam = LastLogPAM1 = valuenv_ININ(ININlogPAM1);
+
+	 resume:*/
+	/* the following variables must be set: pam1, M, pam2, NorFre */
+	/* if AaCounts==0, then NorFre has to be set after computing
+	 the exp(M) */
+	for (i = 0; i < d1 * d2; ++i) {
+		M[i] = log_pam1[i];
+	}
+
+	if (pam1 != 1) {
+		for (i = 0; i < n * n; i++) {
+			M[i] *= pam1;
+		}
+	}
+
+	mexp(M, t1, t2, MP, n);
+	/*if (AaCounts == 0 *//* signal that a logPAM1 matrix is passed *//*) {*/
+	for (tot = i = 0; i < n; i++) {
+		if (MP[i] == 0 || MP[i * n] == 0)
+			NorFre[i] = 0;
+		else
+			tot += NorFre[i] = MP[i * n] / MP[i];
+	}
+	for (i = 0; i < n; i++)
+		NorFre[i] /= tot;
+	/*}*/
+	/*if (pam1 < pam2) {
+	 res = Newl1(I(pam2 - pam1 + 2), EXPSEQ);
+	 for (i = 0; i < n * n; i++)
+	 M[i] = MP[i];
+	 } else*/
+	/*res = 0;*/
+
+	/* To insure that the algorithms for dynamic programming and
+	 backwards dynamic programming work without the need of
+	 checking for approximate values, we will work with doubles
+	 which are <integer>/2^v.
+
+	 The largest possible positive score (negative scores do
+	 not matter too much) should be representable as an exact
+	 sum of all of its components.  I.e
+
+	 MAXSEQLEN * MaxSim * 2^v < 2^DBL_MANT_DIG (usually 53)
+	 or
+	 2^v < 2 / (DBL_EPSILON * MAXSEQLEN * MaxSim) */
+
+	/*for (k = pam1; k <= pam2; k += 1) {*/
+	/* Compute Dayhoff Matrix */
+	maxs = 0.0;
+	/* if there is a negative or 0 entry in the mutation matrix,
+	 this means that there were not enough observations for
+	 this mutation.  We assign it an arbitrarily low value,
+	 representing a probability of 1e-5 */
+	for (i = 0; i < d1; i++) {
+		for (j = i; j < d1; j++) {
+			t = new_matrix[d2 * i + j] = new_matrix[d2 * j + i] =
+					NorFre[i] <= 0 || MP[i * d1 + j] <= 0 ?
+							/*-50.0*/0 : 10 * log10(MP[i * d1 + j] / NorFre[i]);
+			if (t > maxs) {
+				maxs = t;
+			}
+		}
+	}
+
+	v = ilogb(1 / (DBL_EPSILON * MAXSEQLEN * (maxs < 1 ? 1 : maxs)));
+	/* TODO fix this RoundDM macro? */
+	/*for (i = 0; i < d1; i++) {
+		for (j = 0; j < d1; j++) {
+			new_matrix[d2 * i + j] = RoundDM(new_matrix[d2 * i + j], v);
+		}
+	}*/
+	/*if (n == 20)
+	 dm->type = naminstall("Peptide");
+	 else if (n == 64)
+	 dm->type = naminstall("Nucleotide");
+	 else
+	 dm->type = ININunknown;
+
+	 eval(A(dm));
+	 if (pam1 == pam2)*/
+	/*return *//*(A(*//*dm//*))*/;
+	/*res[I(k - pam1 + 1)] = A2(dm);
+
+	 if (k < pam2) {*/
+	/* MP = MP*M */
+	/*mmul(MP, M, t1, n);
+	 for (i = 0; i < n * n; i++)
+	 MP[i] = t1[i];
+	 }
+	 }
+
+	 return (New2(LIST, res));*/
+}

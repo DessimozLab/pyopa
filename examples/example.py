@@ -88,4 +88,6 @@ t = threading.Thread(None, nt_epam, 'EstimatePam Thread', (s1, s2, dms, env))
 t.start()
 t.join()
 
+#to generate environments instead of reading from a file
+generated_envs = cython_swps3.generate_all_env(log_pam1, 1000)
 

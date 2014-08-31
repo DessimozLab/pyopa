@@ -1,5 +1,7 @@
 cimport cython_swps3
 
+from math import log10
+
 import numpy as np
 cimport numpy as np
 import json
@@ -357,6 +359,33 @@ def align_scalar_reference_local(s1, s2, env, is_normalized=False):
         s2 = normalize_sequence(s2)
     return c_align_scalar_normalized_reference_local(env.float64_matrix, s1, len(s1), s2, len(s2),
                                      env.gap_open, env.gap_ext, env.threshold)
+
+cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
+    env = AlignmentEnvironment()
+    env.threshold = threshold
+    env.pam = new_pam
+    env.columns = log_pam1_env.columns
+
+    cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = log_pam1_env.float64_matrix
+    cdef np.ndarray[np.double_t, ndim=2, mode="c"] generated_matrix = env.float64_matrix
+    CreateOrigDayMatrix(<double*>logpam.data, new_pam, <double*> generated_matrix.data)
+
+    env.gap_ext = -1.3961
+    env.gap_open = -37.64 + 7.434 * log10(new_pam)
+
+    env.create_scaled_matrices()
+
+    return env
+
+
+def generate_all_env(log_pam1_env, env_num, starting_pam=0.049449734348559203348, threshold=85.0):
+    envs = []
+
+    for i in range(env_num):
+        envs.append(generate_env(log_pam1_env, starting_pam, threshold))
+        starting_pam = min((1 + 1/45.0) * starting_pam, starting_pam + 1)
+
+    return envs
 
 
 cdef class AlignmentProfile:

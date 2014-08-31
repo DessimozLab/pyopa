@@ -12,6 +12,8 @@
 #include <stdint.h>
 
 #define MAXPOINTS 7
+#define SCALB(x, exp) (x * pow(FLT_RADIX, exp))
+#define RoundDM(x,v) (SCALB(rint(SCALB(x,v)),-v))
 
 typedef struct Counters {
 	int inds[MAXSEQLEN + 20000], /* encoded pair of symbols, indices in Simi */
@@ -29,6 +31,8 @@ typedef struct DayMatrix {
 	double* Simi;
 } DayMatrix;
 
+static double NorFre[MAXMUTDIM];
+
 DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 		double* pamDistances, long long* matrix_pointers, int DMSLen);
 
@@ -36,5 +40,7 @@ void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 		double* logPAM1, double* result);
 
 void freeDayMatrices(DayMatrix* DMS, int DMSLen);
+
+void CreateOrigDayMatrix(double* log_pam1, double pam, double* new_matrix);
 
 #endif /* ESTIMATEPAM_H_ */

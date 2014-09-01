@@ -16,10 +16,11 @@ import ctypes
 def normalize_sequence(s, allow_underscore=False):
     """
     Subtracts the ASCII value of 'A' from every character in the given string. This is necessary because the C core
-    is working on these kind of inputs. Normally you should not call this function since it is automatically called
-    during the profile generation.
+    is working on these kind of inputs.
 
     :param s: the string which we would like to transform
+    :param allow_underscore: Allows underscore characters in the input,
+     the underscore characters will not be transformed
     :return: the transformed string
     """
     ret = ""
@@ -100,6 +101,16 @@ def scale_back(val, factor):
 
 
 def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **kwargs):
+    """
+    Creates an environment from the given parameters.
+    :param gap_open: gap opening cost
+    :param gap_ext: gap extension cost
+    :param pam_distance: pam distance
+    :param scores: distance matrix
+    :param column_order: column order of the distance matrix
+    :param kwargs:
+    :return: an AlignmentEnvironment
+    """
 
     reg = re.compile('^[A-Z]*$')
     column_order = ''.join(column_order)
@@ -138,8 +149,8 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **
 
 def read_env_json(json_data):
     """
-    This function is reading an AlignmentEnvironment from a JSON object or a file that contains the JSON data
-    :param json_data: the JSON object from which we want to read the environment
+    This function reads an AlignmentEnvironment from a JSON object or a file that contains the JSON data
+    :param json_data: the JSON object from which we want to read the environment or a JSON file
     :param columns: defines the order of the matrix columns and rows
     :return: the environment
     """
@@ -168,14 +179,15 @@ def read_all_env_json(file_loc):
     return ret
 
 
-def align_short(s1, s2, env, is_normalized = False):
+def align_short(s1, s2, env, is_normalized=False):
     """
-    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
+    Aligns two sequences by using the matrix and gap costs defined in the file/AlignmentEnvironment.
+    This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
     :param s2: second string of the alignment
-    :param env: file that contains the matrix in JSON format
+    :param env: file that contains the matrix in JSON format or an AlignmentEnvironment
     :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the short estimation of the score
     """
@@ -189,12 +201,13 @@ def align_short(s1, s2, env, is_normalized = False):
 
 def align_byte(s1, s2, env, is_normalized=False):
     """
-    Aligns two sequences by using the matrix and gap costs defined in the file. This is not an efficient way to align
+    Aligns two sequences by using the matrix and gap costs defined in the file/AlignmentEnvironment.
+    This is not an efficient way to align
     sequences and should only be used for testing purposes.
 
     :param s1: first string of the alignment
     :param s2: second string of the alignment
-    :param env: file that contains the matrix in JSON format
+    :param env: file that contains the matrix in JSON format or an AlignmentEnvironment
     :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the byte estimation of the score
     """
@@ -228,16 +241,17 @@ cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,nd
 cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2,
                                        int ls2, double gap_open, double gap_ext, double threshold, bint is_global):
     """
-    :param matrix:
-    :param s1:
-    :param ls1:
-    :param s2:
-    :param ls2:
-    :param gap_open:
-    :param gap_ext:
-    :param threshold:
-    :param is_global:
-    :return:
+    A vectorized double precision alignment implementation.
+    :param matrix: the 26x26 double matrix
+    :param s1: the first string
+    :param ls1: the length of the first string
+    :param s2: the second string
+    :param ls2: the length of the second string
+    :param gap_open: the gap opening cost
+    :param gap_ext: the gap extension cost
+    :param threshold: the threshold used for the calculation (might be ignored)
+    :param is_global: for global/local alignment
+    :return: the score and the max1, max2 ranges
     """
     cdef int max1[1]
     cdef int max2[1]
@@ -264,6 +278,17 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
 
 
 cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_alignment=None):
+    """
+    Does the concrete string alignment for two given strings.
+    :param s1: first sequence
+    :param s2: second sequence
+    :param env: AlignmentEnvironment to be used
+    :param is_normalized:
+    :param is_global:
+    :param provided_alignment: If given, we can save up the calculation of the ranges and the scores.
+     The provided alignment must contain the FULL ranges and the score.
+    :return: the two aligned strings
+    """
     if provided_alignment is None:
         provided_alignment = align_double(s1, s2, env, is_normalized, False, is_global, True)
     elif len(provided_alignment) != 5:
@@ -306,14 +331,16 @@ cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_
 
 def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_global=False, calculate_ranges=True):
     """
+    A vectorized implementation of the double precision alignment algorithm.
     :param s1:
     :param s2:
     :param env:
     :param is_normalized:
-    :param stop_at_threshold:
+    :param stop_at_threshold: if True, we terminate on reaching the threshold and return the score just over it
     :param is_global:
-    :param calculate_ranges:
-    :return:
+    :param calculate_ranges: if True, we calculate the full ranges for the alignment
+    :return: an array of [score, max1, max2] if calculate ranges is false and  [score, max1, max2, min1, min2] if it's
+    true
     """
     if not is_normalized:
         s1 = normalize_sequence(s1)
@@ -361,6 +388,14 @@ def align_scalar_reference_local(s1, s2, env, is_normalized=False):
                                      env.gap_open, env.gap_ext, env.threshold)
 
 cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
+    """
+    Generates a new AlignmentEnvironment from the given log_pam1 environment by using the new_pam pam distance and
+    the given threshold.
+    :param log_pam1_env: The log_pam1 environment
+    :param new_pam: The new pam number to be used
+    :param threshold: The new threshold
+    :return: a freshly generated AlignmentEnvironment
+    """
     env = AlignmentEnvironment()
     env.threshold = threshold
     env.pam = new_pam
@@ -379,6 +414,15 @@ cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
 
 
 def generate_all_env(log_pam1_env, env_num, starting_pam=0.049449734348559203348, threshold=85.0):
+    """
+    Generates a list of environments starting from the given pam distance, by using the formula of
+    starting_pam = min((1 + 1/45.0) * starting_pam, starting_pam + 1) for further environments.
+    :param log_pam1_env: The log_pam1 environment
+    :param env_num: number of environments to be generated
+    :param starting_pam: the pam number of the first environment
+    :param threshold: threshold
+    :return:
+    """
     envs = []
 
     for i in range(env_num):
@@ -580,6 +624,10 @@ class AlignmentEnvironment:
 
 
 cdef class MutipleAlEnv:
+    """
+    This class stores a list of DayHoff matrices generated from C. It can be generated from a list of
+     AlignmentEnvironments and can be used to call the EstimatePam function, which is implemented in C.
+    """
 
     cdef cython_swps3.DayMatrix* _c_dayMatrices
     cdef int dms_len

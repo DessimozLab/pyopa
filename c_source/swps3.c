@@ -121,7 +121,7 @@ int main(int argc, char * argv[]) {
 	int16_t sMatrix[MATRIX_DIM * MATRIX_DIM];
 	double dMatrix[MATRIX_DIM * MATRIX_DIM];
 	/* 1267 instead of 1266 because in darwin indexing starts from 1 and the code is migrated like that */
-	double* doubleMatrices[1267];
+	long long* doubleMatrices[1267];
 	double gapOpenCosts[1267];
 	double gapExtCosts[1267];
 	double pamDistances[1267];
@@ -133,7 +133,7 @@ int main(int argc, char * argv[]) {
 			"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/logPAM1.dat",
 			&tmp);
 	for (i = 1; i < 1267; ++i) {
-		doubleMatrices[i] = (double*) malloc(
+		doubleMatrices[i] = (long long) malloc(
 		MATRIX_DIM * MATRIX_DIM * sizeof(double));
 		char name[2000];
 		sprintf(name,
@@ -219,11 +219,15 @@ int main(int argc, char * argv[]) {
 	EstimatePam(t1, t2, tLen, DMS, 1266, logPAM1Matrix, result);
 	printf("EstimatePam:\n%f\n%f\n%f\n", result[0], result[1], result[2]);
 
-	double* generated = CreateOrigDayMatrix(logPAM1Matrix, 250);
+	double generated[MATRIX_DIM * MATRIX_DIM];
+	CreateOrigDayMatrix(logPAM1Matrix, 250, generated);
 
-	free(generated);
 	freeDayMatrices(DMS, 1266);
 	swps3_freeProfileShortSSE(profile);
+
+	for (i = 1; i < 1267; ++i) {
+		free(doubleMatrices[i]);
+	}
 
 	printf("Double pointer size:%d\n", sizeof(double*));
 	printf("Char pointer size:%d\n", sizeof(char*));

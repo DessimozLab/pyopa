@@ -531,6 +531,7 @@ double c_align_double_local(double* matrix, const char *s1, int ls1,
 				aligned_free(profile);
 				aligned_free(old_opt);
 				aligned_free(new_opt);
+				aligned_free(new_rd);
 				return ((double) MaxScore);
 			}
 
@@ -605,6 +606,7 @@ double c_align_double_local(double* matrix, const char *s1, int ls1,
 						aligned_free(profile);
 						aligned_free(old_opt);
 						aligned_free(new_opt);
+						aligned_free(new_rd);
 						return (MaxScore);
 					}
 				}
@@ -621,6 +623,7 @@ double c_align_double_local(double* matrix, const char *s1, int ls1,
 	aligned_free(profile);
 	aligned_free(old_opt);
 	aligned_free(new_opt);
+	aligned_free(new_rd);
 #ifdef PY_DEBUG
 	printf("c_align_double: return %f\n", (double) MaxScore);
 #endif

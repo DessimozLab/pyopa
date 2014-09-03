@@ -11,6 +11,17 @@ import os
 import fnmatch
 import re
 import ctypes
+from subprocess import call
+
+def run_tests():
+    """
+    Runs the available unit tests.
+    :return:
+    """
+    test_dir = os.path.join(sys.prefix, 'cython_swps3_test')
+    cmd = 'python -m unittest discover ' + test_dir
+    print cmd
+    call(cmd, shell=True)
 
 
 def normalize_sequence(s, allow_underscore=False):
@@ -683,3 +694,4 @@ cdef class MutipleAlEnv:
     def free(self):
         if self._c_dayMatrices is not NULL:
             cython_swps3.freeDayMatrices(self._c_dayMatrices, self.dms_len)
+

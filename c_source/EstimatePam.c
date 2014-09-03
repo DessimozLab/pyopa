@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "EstimatePam.h"
 #include <float.h>
+#include <string.h>
 
 /*
  #  compute the best Pam index for a given
@@ -815,7 +816,7 @@ void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
 
 	 eval(A(dm));
 	 if (pam1 == pam2)*/
-	/*return *//*(A(*//*dm//*))*/;
+	/*return (A(dm));*/
 	/*res[I(k - pam1 + 1)] = A2(dm);
 
 	 if (k < pam2) {*/

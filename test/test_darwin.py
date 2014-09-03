@@ -165,9 +165,10 @@ class AlignTest(unittest.TestCase):
                 self.assertGreaterEqual(short_result, sys.float_info.max)
             else:
                 if short_result < r.score_short and (r.score_short - short_result) > 0.01:
-                    print "Warning: python short score(%f) is less than darwin's, but still bigger" \
-                          " than the double score(%f) at id: %d!" \
-                          % (short_result, r.score_double, completed + 1)
+                    #print "Warning: python short score(%f) is less than darwin's, but still bigger" \
+                    #      " than the double score(%f) at id: %d!" \
+                    #      % (short_result, r.score_double, completed + 1)
+                    pass
                 else:
                     self.assertAlmostEqual(short_result, r.score_short,
                                            places=self.precision,

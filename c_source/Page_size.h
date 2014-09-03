@@ -8,6 +8,6 @@
 #ifndef PAGE_SIZE_H_
 #define PAGE_SIZE_H_
 
-int getPageSize();
+int getPageSize(void);
 
 #endif /* PAGE_SIZE_H_ */

@@ -256,8 +256,8 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     cdef int max1[1]
     cdef int max2[1]
 
-    max1[1] = 0
-    max2[2] = 0
+    max1[0] = 0
+    max2[0] = 0
 
     ret = []
 
@@ -659,7 +659,7 @@ cdef class MutipleAlEnv:
             matrices[i] = envs[i-1].float64_matrix.ctypes.data
 
         self._c_dayMatrices = cython_swps3.createDayMatrices(<double*> gap_open.data, <double*> gap_ext.data,
-                    <double*> pam_dist.data, <double**> matrices.data, self.dms_len)
+                    <double*> pam_dist.data, <long long*> matrices.data, self.dms_len)
 
     def estimate_pam(self, s1, s2, is_normalized=False):
         if len(s1) != len(s2):

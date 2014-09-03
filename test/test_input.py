@@ -113,3 +113,6 @@ class UtilTest(unittest.TestCase):
         dms = cython_swps3.MutipleAlEnv(self.envs, log_pam1)
 
         self.assertRaises(Exception, dms.estimate_pam, self.s1, self.s2)
+
+if __name__ == '__main__':
+    unittest.main()

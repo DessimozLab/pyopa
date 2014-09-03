@@ -13,7 +13,7 @@
 	#include <unistd.h>
 #endif
 
-int getPageSize() {
+int getPageSize(void) {
 #if (defined _WIN32 || defined __WIN32__)
 	SYSTEM_INFO system_info;
 	GetSystemInfo (&system_info);

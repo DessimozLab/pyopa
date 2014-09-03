@@ -1,0 +1,95 @@
+\documentclass[12pt]{article}
+
+\usepackage{listings} 
+\usepackage{listings}
+\usepackage{color}
+
+\newcommand{\pp}{PyOPA}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+ 
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+ 
+\lstset{style=mystyle}
+\title{Summer Internship: Migrating Integral Darwin Functionalities to Python}
+
+\author{Ferenc Galk\'o  \\
+    ferenc.galko@gmail.com}
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+\section{Introduction}
+The nascent field of bioinformatics is expanding at unprecedented rate, demanding more and more efficient implementations of a variety of algorithms, especially associated with sequence alignment.
+
+In many cases hundreds of billions of alignments have to be done to investigate relations between publicly available genes. Such an immense amount of operations require an efficient low level - possibly vectorised - implementation, for which usually C/C++ is used. However, it is usually not really convenient to develop the applications that use the alignment algorithm in these low level languages.
+
+\pp{} makes it possible to carry out various operations on sequences with the efficiency of a vectorised C and the convenience of a Python code, in a platform independent way. 
+
+The C core, that is wrapped by using NumPy and Cython, is already broadly used from Darwin, so in order to make a platform-switching possible, all results must conform to the results coming from Darwin, which is assured by the unit tests coming with \pp{}.
+
+In this document, we concisely describe the main functionalities offered by \pp{} as well as a brief comparison to PyCogent. In Section \ref{sec:inst} we show how to install \pp{}, while Section \ref{sec:features} outlines the main features of the package, followed by the comparison to PyCogent in Section \ref{compCogent}.
+
+\section{Installing \pp{}}
+\label{sec:inst}
+\pp{} draws on features offered by \emph{NumPy} and \emph{Cython} and it is strongly recommended to properly install these packages before installing \pp{}, although these two packages are defined as dependencies and should be automatically downloaded and installed during the installation.
+
+There are two simple ways to install \pp{}, the first, probably more convenient, is by using \emph{pip}:
+\begin{lstlisting}
+pip install PyOPA
+\end{lstlisting}
+This simple code snippet should automatically download \pp{} from \emph{PyPi} and compile and install the necessary files according to your operating system. This means, that on UNIX-based systems \emph{gcc}, and on Windows-based systems \emph{Visual Studio Compiler} must be available.
+
+If you are able to install \emph{NumPy} and \emph{Cython} without any problems by using \emph{pip}, which means that you have the necessary means and permissions to download, compile and install a package from \emph{PyPi}, no errors should occur during the installation of \pp{}.
+
+Another possibility is to download, extract and install the package manually. After extracting the project into a separate folder, you should navigate into the directory and use
+
+\begin{lstlisting}
+python install setup.py
+\end{lstlisting}
+
+to install \pp{}. This should compile and install all the necessary files without any problems.
+
+\section{Features}
+\label{sec:features}
+
+\subsection{Byte and short estimations}
+\label{sec:bsEstim}
+Instead of calculating the actual double score for two given sequences, we can rapidly compute an upper bound of the score. If this upper bound score is lower than the threshold of interest, we can omit the calculation of the double precision score for these particular sequences.
+
+If the upper bound score is over the threshold, however, we have do another alignment to get the actual
+ score, which can still be lower than the threshold. Since the vast majority of the scores is usually lower than the threshold, a substantial amount of time can be saved by using the byte or short estimation, because an estimation runs much faster than a double alignment.
+
+To produce an upper bound by the short (or the byte) method, we have to transform the double distance matrix and the gap costs to shorts (or bytes). The transformation has to be done in a way that the future calculations will surely produce an upper bound score. Such a transformation could be $ceil(x)$ for every element, but this would result in a really imprecise upper bound score. Instead, we use $ceil(x \cdot factor)$ with $factor=UNSIGNED\_SHORT\_MAX / threshold$ for the short version, and a bit more complicated formula for the byte version. The factor should be designed in a way that it reduces the relative rounding errors, for a more precise estimation.
+
+After the transformations, we can cram multiple elements into a single register (8 for the short version and 16 for the byte version, assuming 128-bit SSE registers) and perform the calculation. Of course the result score has to be scaled back by the used $factor$.
+
+To hasten the estimation further, we can create so-called profiles for a given $S$ sequence and matrix combination. After a profile is created, we can use it for multiple alignments to the same $S$ and matrix combination.
+
+
+\section{Comparison with PyCogent}
+\label{compCogent}
+
+\end{document}

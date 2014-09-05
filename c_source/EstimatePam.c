@@ -800,7 +800,8 @@ void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
 		}
 	}
 
-	v = ilogb(1 / (DBL_EPSILON * MAXSEQLEN * (maxs < 1 ? 1 : maxs)));
+	/*v = ilogb(1 / (DBL_EPSILON * MAXSEQLEN * (maxs < 1 ? 1 : maxs)));*/
+
 	/* TODO fix this RoundDM macro? */
 	/*for (i = 0; i < d1; i++) {
 		for (j = 0; j < d1; j++) {

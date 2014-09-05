@@ -5,6 +5,7 @@
 \usepackage{color}
 
 \newcommand{\pp}{PyOPA}
+\newcommand{\alenv}{\emph{AlignmentEnvironment}}
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
@@ -12,6 +13,7 @@
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
  
 \lstdefinestyle{mystyle}{
+	language=Python,
     backgroundcolor=\color{backcolour},   
     commentstyle=\color{codegreen},
     keywordstyle=\color{magenta},
@@ -31,10 +33,10 @@
 }
  
 \lstset{style=mystyle}
-\title{Summer Internship: Migrating Integral Darwin Functionalities to Python}
 
-\author{Ferenc Galk\'o  \\
-    ferenc.galko@gmail.com}
+\title{Optimal Pairwise Alignment}
+
+\author{}
 
 \begin{document}
 \maketitle
@@ -50,11 +52,11 @@ In many cases hundreds of billions of alignments have to be done to investigate 
 
 The C core, that is wrapped by using NumPy and Cython, is already broadly used from Darwin, so in order to make a platform-switching possible, all results must conform to the results coming from Darwin, which is assured by the unit tests coming with \pp{}.
 
-In this document, we concisely describe the main functionalities offered by \pp{} as well as a brief comparison to PyCogent. In Section \ref{sec:inst} we show how to install \pp{}, while Section \ref{sec:features} outlines the main features of the package, followed by the comparison to PyCogent in Section \ref{compCogent}.
+In this document, we concisely describe the main functionalities offered by \pp{} as well as a brief comparison to PyCogent. In Section \ref{sec:inst} we show how to install \pp{}, while Section \ref{sec:features} outlines the main features of the package, followed by the comparison to PyCogent in Section \ref{sec:compCogent}. Finally, Section \ref{sec:concl} suggest possible future functionalities, that are yet to be implemented and could improve both the efficiency and the user experience of \pp{}. 
 
 \section{Installing \pp{}}
 \label{sec:inst}
-\pp{} draws on features offered by \emph{NumPy} and \emph{Cython} and it is strongly recommended to properly install these packages before installing \pp{}, although these two packages are defined as dependencies and should be automatically downloaded and installed during the installation.
+\pp{} draws on features offered by \emph{NumPy} and \emph{Cython} and it is strongly recommended to properly install the \emph{latest} version of these packages before installing \pp{}.
 
 There are two simple ways to install \pp{}, the first, probably more convenient, is by using \emph{pip}:
 \begin{lstlisting}
@@ -70,13 +72,93 @@ Another possibility is to download, extract and install the package manually. Af
 python install setup.py
 \end{lstlisting}
 
-to install \pp{}. This should compile and install all the necessary files without any problems.
+to install \pp{}. This should compile and install all the necessary files without any problems. To check whether the unit tests produce correct results on your computer, you can simply run them by a singe function call:
+\begin{lstlisting}
+import PyOPA
+
+PyOPA.run_tests()
+\end{lstlisting}
+
+Unless you have your own data files (where you define, for example, the distance matrix, gap opening and extension costs), you have to use one of the matrices coming with \pp{}. All the data files that is necessary to run the unit tests and future operations on sequences are automatically installed into a separate folder (\emph{\textless{}sys.prefix\textgreater/\pp{}\_test/}) during installation. If you cannot locate or access the data files, you can download \pp{} and extract all of the files manually. The data files should be available under \emph{test/data/}, which you can use for future alignments. 
+
+Under \emph{test/} and \emph{examples/} you can find a variety of well-commented examples for all of the features offered by \pp{}.
 
 \section{Features}
 \label{sec:features}
 
+\subsection{Normalizing Sequences}
+\label{subsec:normseq}
+The C core does not operate on sequences consist of upper-case letters of the English alphabet, but instead it uses byte arrays generated from the original sequences by deducting \emph{chr('A')} from every single character in the given sequences. Because of this, for every single operation the participant sequences should be transformed, which is clearly a waste of time.
+
+Therefore, every function and method that operates on sequences has an optional (false by default) parameter, where you can specify whether the given parameter is already transformed. When we align multiple consecutive sequences, like an all against all, we should normalize the sequences beforehand:
+
+\begin{lstlisting}
+s1_norm = cython_swps3.normalize_sequence(s1)
+s2_norm = cython_swps3.normalize_sequence(s2)
+
+#normalizing sequences in the background
+print cython_swps3.align_double(s1, s2, generated_env)
+
+#passing normalized sequences and setting the is_normalized
+# flag, a more efficient solution
+print cython_swps3.align_double(s1_norm, s2_norm, generated_env, True)
+\end{lstlisting}
+
+
+\subsection{Creating AlignmentEnvironments}
+\label{subsec:createAlEnvs}
+In order to operate on sequences, the distance matrix, the gap opening and extension costs and a threshold of interest must be provided. These data are stored in a so-called \alenv{} class in Python, which can be used for future alignments. 
+
+The \alenv{} also stores different matrices and gap costs calculated from the original, provided ones. To create an environment you should provide the necessary data in a dictionary:
+
+\begin{lstlisting}
+data = {'gap_open': -20.56,
+        'gap_ext': -3.37,
+        'pam_distance': 150.87,
+        'scores': [[10.0]],
+        'column_order': 'A',
+        'threshold': 50.0}
+
+env = cython_swps3.create_environment(**data)
+
+#prints [30.0, 2, 2, 0, 0], the first element is the score
+print cython_swps3.align_double('AAA', 'AAA', env)
+
+#prints [0.0, -1, -1, 0, 0], the score is 0
+# since the score for 'A -> T' is undefined
+print cython_swps3.align_double('TTT', 'AAA', env)
+\end{lstlisting}
+
+In this simple example, we used a really simple distance matrix with a single element, which means only the \emph{A $\rightarrow$ A} score is defined. When you create an \alenv{} the dimension of the matrix and the length of the columns must be the same, however, during the construction  this provided distance matrix is always extended into a 26x26 one, which consists of the scores for [A-Z]. The undefined cells of the matrix are filled with zeros (in this case every cell, except for the first one).
+
+Because of this, aligning \emph{AAA} to \emph{AAA} gives a result of 30.0, whereas aligning the same sequence to \emph{TTT} results in zero.
+
+
+Alternatively, you can either read a single \alenv{} or multiple ones from a JSON-formatted file:
+\begin{lstlisting}
+env_list = cython_swps3.read_all_env_json(
+    os.path.join(data_dir, 'all_matrices.json'))
+log_pam1 = cython_swps3.read_env_json(
+    os.path.join(data_dir, 'logPAM1.json'))
+\end{lstlisting}
+
+Precomputed matrices stored in JSON are also coming with the package, see in Section \ref{sec:inst}.
+
+Another possibility is to generate the distance matrices and gap costs from a single \alenv{}:
+
+\begin{lstlisting}
+#generates a signle AlignmentEnvironment
+# with a pam distance of 250
+generated_env = cython_swps3.generate_env(log_pam1_env, 250)
+
+#generates 1000 environments for different pam distances
+gen_env_list = cython_swps3.generate_all_env(log_pam1_env, 1000)
+\end{lstlisting}
+
+For each generation a log\_pam1 \alenv{} should be used.
+
 \subsection{Byte and short estimations}
-\label{sec:bsEstim}
+\label{subsec:bsEstim}
 Instead of calculating the actual double score for two given sequences, we can rapidly compute an upper bound of the score. If this upper bound score is lower than the threshold of interest, we can omit the calculation of the double precision score for these particular sequences.
 
 If the upper bound score is over the threshold, however, we have do another alignment to get the actual
@@ -86,10 +168,100 @@ To produce an upper bound by the short (or the byte) method, we have to transfor
 
 After the transformations, we can cram multiple elements into a single register (8 for the short version and 16 for the byte version, assuming 128-bit SSE registers) and perform the calculation. Of course the result score has to be scaled back by the used $factor$.
 
-To hasten the estimation further, we can create so-called profiles for a given $S$ sequence and matrix combination. After a profile is created, we can use it for multiple alignments to the same $S$ and matrix combination.
+To hasten the estimation further, we can create so-called profiles for a given $S$ sequence and matrix combination. After a profile is created, we can use it for multiple alignments to the same $S$ and matrix combination (the gap scores can be changed, by redefining in the provided \alenv{}):
 
+\begin{lstlisting}
+s1 = 'AATCGGA'
+s2 = 'AAAA'
+s3 = 'CATACCTGGTGTGATGCC'
+
+#not optimal, two hidden profile generation in the background
+print cython_swps3.align_short(s1, s2, generated_env)
+print cython_swps3.align_short(s1, s3, generated_env)
+print cython_swps3.align_byte(s1, s2, generated_env)
+print cython_swps3.align_byte(s1, s3, generated_env)
+
+#one profile generation
+profile = cython_swps3.AlignmentProfile()
+profile.create_profiles(s1, generated_env)
+
+#the following code produces the exact same result
+#but is more efficient since it's
+#using the same profile for multiple alignments
+print profile.align_short(s2, generated_env)
+print profile.align_short(s3, generated_env)
+print profile.align_byte(s2, generated_env)
+print profile.align_byte(s3, generated_env)
+\end{lstlisting}
+
+The scaled short and byte matrices, which are used for profile generation, and the gap costs are automatically computed during the creation of an \alenv{}. However, if you change the threshold, the element of the original matrix or the gap costs the short and byte ones have to be recomputed:
+\begin{lstlisting}
+generated_env.threshold = 50.0
+#WRONG: the short and byte matrices are not recomputed!!!
+# the matrices and gap costs for the old threshold
+# will be used
+profile.create_profiles(s1, generated_env)
+
+#recompute the byte/short matrices and gap costs
+generated_env.create_scaled_matrices()
+
+#and then create the profile
+profile.create_profiles(s1, generated_env)
+
+#now we can do alignments with the new profile:
+print profile.align_short(s3, generated_env)
+\end{lstlisting}
+
+\subsection{Computing the actual score}
+\label{subsec:compAct}
+
+Whenever the estimation is over the threshold, we have to compute the actual score, which can still be below the threshold. In \pp{} there are two possible ways to do so, however, only one of them is an efficient vectorised approach.
+
+The first available Python function is a reference implementation of the Smith-Waterman algorithm, and should run on every system without problems. It does not use any vectorisation, therefore it is clearly not an efficient solution. This reference implementation is only capable of local alignments and provides a single double precision score as a result but not the ranges of the local alignment:
+
+\begin{lstlisting}
+#always a local alignment
+print cython_swps3.align_scalar_reference_local(s1, s2, generated_env)
+\end{lstlisting}
+
+The second, more efficient and vectorised solution is also capable of global alignments and can also provide the ranges of the local alignment on demand. By setting the \emph{stop\_at\_threshold} argument true, we can terminate the score computation if it reaches the provided threshold:
+
+\begin{lstlisting}
+s1 = 'AATCGGA'
+s3 = 'CATACCTGGTGTGATGCC'
+#operating on normalized sequences, does not stop at threshold,
+#  it is NOT a global alignment, and computes the ranges
+#returns [19.946195452221108, 6, 8, 0, 2], the first element is the score
+# the 4 other elements are [max1, max2, min1, min2] the ranges
+print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, True)
+
+#returns [score, max1, max2]
+print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, False)
+
+generated_env.threshold = 10.0
+#no generated_env.create_scaled_matrices() is needed
+# because we do not operate on short/byte matrices
+
+#results in [11.499268729503227, 3, 0, 3, 0], not the best possible
+# local alignment, but still over the threshold of 10.0
+print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, True, False, True)
+
+#global alignment, stop at threshold is ignored
+print cython_swps3.align_double(s1, s3, generated_env, False, True, True, True)
+\end{lstlisting}
+
+In the example given above, \emph{s1[0:6] = AATCGGA} has been aligned to \emph{s3[2:8] = TACCTGG}. If we do not require the full ranges, the \emph{max1} and \emph{max2} values are still provided, so in this case the result is an array with three elements.
+
+\subsection{Getting the concrete alignment}
+\label{subsec:concrete}
+
+\subsection{EstimatePam}
+\label{subsec:EPam}
 
 \section{Comparison with PyCogent}
-\label{compCogent}
+\label{sec:compCogent}
+
+\section{Conclusion and future work}
+\label{sec:concl}
 
 \end{document}

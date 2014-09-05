@@ -111,7 +111,7 @@ def scale_back(val, factor):
     return val / factor
 
 
-def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **kwargs):
+def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, threshold=85.0, **kwargs):
     """
     Creates an environment from the given parameters.
     :param gap_open: gap opening cost
@@ -137,7 +137,7 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **
 
 
     env = AlignmentEnvironment()
-    env.columns = column_order
+    env.threshold = threshold
     env.gap_open = gap_open
     env.gap_ext = gap_ext
     env.pam = pam_distance
@@ -145,11 +145,11 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, **
 
     #convert the compact matrix into C compatible one by extending it to a 26x26 one
     extended_matrix = [[0 for x in xrange(26)] for x in xrange(26)]
-    for i in range(0, len(env.columns)):
+    for i in range(0, len(column_order)):
         if len(compact_matrix[i]) != len(column_order):
             raise Exception('The dimension of the matrix is not consistent with the column order')
-        for j in range(0, len(env.columns)):
-            extended_matrix[ord(env.columns[i]) - ord('A')][ord(env.columns[j]) - ord('A')] = compact_matrix[i][j]
+        for j in range(0, len(column_order)):
+            extended_matrix[ord(column_order[i]) - ord('A')][ord(column_order[j]) - ord('A')] = compact_matrix[i][j]
 
     env.float64_matrix = np.array(extended_matrix, dtype=np.float64)
 
@@ -410,7 +410,6 @@ cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
     env = AlignmentEnvironment()
     env.threshold = threshold
     env.pam = new_pam
-    env.columns = log_pam1_env.columns
 
     cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = log_pam1_env.float64_matrix
     cdef np.ndarray[np.double_t, ndim=2, mode="c"] generated_matrix = env.float64_matrix
@@ -582,9 +581,6 @@ class AlignmentEnvironment:
         #the PAM distance associated with the matrices
         self.pam = 0.0
 
-        #The columns of the compressed matrix. The compressed matrix to be extended to a 26x26 matrix since the profile
-        #generation requires a 26x26 matrix
-        self.columns = ''
         self.threshold = 85.0
 
         #This gapOpen/Ext and matrix is used by the scalar alignment function. These are directly passed to the C core
@@ -689,7 +685,6 @@ cdef class MutipleAlEnv:
         ret[2] = result[2]
 
         return ret
-
 
     def free(self):
         if self._c_dayMatrices is not NULL:

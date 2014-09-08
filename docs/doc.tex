@@ -52,7 +52,7 @@ In many cases hundreds of billions of alignments have to be done to investigate 
 
 The C core, that is wrapped by using NumPy and Cython, is already broadly used from Darwin, so in order to make a platform-switching possible, all results must conform to the results coming from Darwin, which is assured by the unit tests coming with \pp{}.
 
-In this document, we concisely describe the main functionalities offered by \pp{} as well as a brief comparison to PyCogent. In Section \ref{sec:inst} we show how to install \pp{}, while Section \ref{sec:features} outlines the main features of the package, followed by the comparison to PyCogent in Section \ref{sec:compCogent}. Finally, Section \ref{sec:concl} suggest possible future functionalities, that are yet to be implemented and could improve both the efficiency and the user experience of \pp{}. 
+In this document, we concisely describe the main functionalities offered by \pp{} as well as a brief comparison to PyCogent. In Section \ref{sec:inst} we show how to install \pp{}, while Section \ref{sec:features} outlines the main features of the package, followed by the comparison to PyCogent in Section \ref{sec:compCogent}. Finally, a short conclusion can be found in Section \ref{sec:concl}. 
 
 \section{Installing \pp{}}
 \label{sec:inst}
@@ -255,13 +255,63 @@ In the example given above, \emph{s1[0:6] = AATCGGA} has been aligned to \emph{s
 \subsection{Getting the concrete alignment}
 \label{subsec:concrete}
 
+In some cases we might be interested not only in the score, but also in a concrete alignment of the two sequences. With \pp{} this can be computed by using a single function, however, this function requires a huge amount of stack to work correctly. On UNIX-based systems you can unlimit your stack size by using the following Python code snippet:
+\begin{lstlisting}
+import resource
+
+resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+\end{lstlisting}
+
+Another, more general approach is to start the operation in a new thread with a given stack size:
+
+\begin{lstlisting}
+def nt_align(s1, s2, env, is_global, aligned_strs):
+    print 'Concrete %s alignment:' % ('global' if is_global else 'local')
+    tmp_aligned_strings = cython_swps3.align_strings(s1, s2, env, False, is_global)
+    print '\taligned_s1: %s' % tmp_aligned_strings[0]
+    print '\taligned_s2: %s' % tmp_aligned_strings[1]
+    aligned_strs.extend(tmp_aligned_strings)
+
+s1 = 'PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF'
+s2 = 'PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY'
+threading.stack_size(100000000)
+
+# aligned_s1: PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKV
+# aligned_s2: PIERIENNKI___LANTGVISVTIGVIIYQDLHADT
+aligned_strings = []
+t = threading.Thread(None, nt_align,
+                     'Aligning Thread', (s1, s2, generated_env, False, aligned_strings))
+t.start()
+t.join()
+print aligned_strings
+\end{lstlisting}
+
 \subsection{EstimatePam}
 \label{subsec:EPam}
+
+For two given aligned sequences, the \emph{EstimatePam} function computes maximum likelihood estimates on the score and pam distance, and the variance. 
+
+From a list of \emph{AlignmentEnvironments} and a \emph{log\_pam1} environment we can create the necessary data structure which can be used for computing the estimations.
+
+\begin{lstlisting}
+dms = cython_swps3.MutipleAlEnv(gen_env_list, log_pam1_env)
+
+#returns an array: [similarity, pam_distance, variance]
+print dms.estimate_pam(aligned_strings[0], aligned_strings[1])
+\end{lstlisting}
+
+The first element of the array is the estimated similarity score, which is always higher than the actual score, the second element is the estimated evolutionary distance and the third one is the variance.
+
+The input strings (\emph{s1} and \emph{s2}) must have the same length, since they have to be a concrete alignment pair produced by \emph{align\_strings} (see in Section \ref{subsec:concrete}).
 
 \section{Comparison with PyCogent}
 \label{sec:compCogent}
 
-\section{Conclusion and future work}
+\section{Conclusion}
 \label{sec:concl}
+
+With its core written in C, \pp{} offers and efficient vectorized implementation of the Smith-Waterman algorithm as well as many other features including byte and short estimations and computing the concrete strings.
+
+All of the operations can be performed with the convenience of Python, in a platform independent way, which makes it an enticing choice for applications operating on immense amount of sequences, where efficiency is of paramount importance.
 
 \end{document}

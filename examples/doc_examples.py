@@ -1,5 +1,6 @@
 import cython_swps3
 import os
+import threading
 
 
 #---------------------------------------------------------------------------------------------------
@@ -107,3 +108,30 @@ print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, True, Fal
 #global alignment, stop at threshold is ignored
 print cython_swps3.align_double(s1, s3, generated_env, False, True, True, True)
 #---------------------------------------------------------------------------------------------------
+#to do the concrete alignment in a new thread
+def nt_align(s1, s2, env, is_global, aligned_strs):
+    print 'Concrete %s alignment:' % ('global' if is_global else 'local')
+    tmp_aligned_strings = cython_swps3.align_strings(s1, s2, env, False, is_global)
+    print '\taligned_s1: %s' % tmp_aligned_strings[0]
+    print '\taligned_s2: %s' % tmp_aligned_strings[1]
+    aligned_strs.extend(tmp_aligned_strings)
+
+s1 = 'PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF'
+s2 = 'PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY'
+threading.stack_size(100000000)
+
+# aligned_s1: PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKV
+# aligned_s2: PIERIENNKI___LANTGVISVTIGVIIYQDLHADT
+aligned_strings = []
+t = threading.Thread(None, nt_align,
+                     'Aligning Thread', (s1, s2, generated_env, False, aligned_strings))
+t.start()
+t.join()
+print aligned_strings
+#---------------------------------------------------------------------------------------------------
+dms = cython_swps3.MutipleAlEnv(gen_env_list, log_pam1_env)
+
+#returns an array: [similarity, pam_distance, variance]
+print dms.estimate_pam(aligned_strings[0], aligned_strings[1])
+
+

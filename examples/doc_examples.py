@@ -1,4 +1,4 @@
-import cython_swps3
+import pyopa
 import os
 import threading
 
@@ -11,42 +11,45 @@ data = {'gap_open': -20.56,
         'column_order': 'A',
         'threshold': 50.0}
 
-env = cython_swps3.create_environment(**data)
+env = pyopa.create_environment(**data)
+
+s1 = pyopa.Sequence('AAA')
+s2 = pyopa.Sequence('TTT')
 
 #prints [30.0, 2, 2, 0, 0], the first element is the score
-print cython_swps3.align_double('AAA', 'AAA', env)
+print pyopa.align_double(s1, s1, env)
 
 #prints [0.0, -1, -1, 0, 0], the score is 0
 # since the score for 'A -> T' is undefined
-print cython_swps3.align_double('TTT', 'AAA', env)
+print pyopa.align_double(s2, s1, env)
 
 #---------------------------------------------------------------------------------------------------
 data_dir = os.path.dirname(__file__) +\
            '/../test/data/matrices/json/'
-env_list = cython_swps3.read_all_env_json(
+env_list = pyopa.read_all_env_json(
     os.path.join(data_dir, 'all_matrices.json'))
-log_pam1_env = cython_swps3.read_env_json(
+log_pam1_env = pyopa.read_env_json(
     os.path.join(data_dir, 'logPAM1.json'))
 #---------------------------------------------------------------------------------------------------
 #generates a signle AlignmentEnvironment
 # with a pam distance of 250
-generated_env = cython_swps3.generate_env(log_pam1_env, 250)
+generated_env = pyopa.generate_env(log_pam1_env, 250)
 
 #generates 1000 environments for different pam distances
-gen_env_list = cython_swps3.generate_all_env(log_pam1_env, 1000)
+gen_env_list = pyopa.generate_all_env(log_pam1_env, 1000)
 #---------------------------------------------------------------------------------------------------
-s1 = 'AATCGGA'
-s2 = 'AAAA'
-s3 = 'CATACCTGGTGTGATGCC'
+s1 = pyopa.Sequence('AATCGGA')
+s2 = pyopa.Sequence('AAAA')
+s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
 
-#not optimal, two hidden profile generation in the background
-print cython_swps3.align_short(s1, s2, generated_env)
-print cython_swps3.align_short(s1, s3, generated_env)
-print cython_swps3.align_byte(s1, s2, generated_env)
-print cython_swps3.align_byte(s1, s3, generated_env)
+#not optimal, multiple hidden profile generations in the background
+print pyopa.align_short(s1, s2, generated_env)
+print pyopa.align_short(s1, s3, generated_env)
+print pyopa.align_byte(s1, s2, generated_env)
+print pyopa.align_byte(s1, s3, generated_env)
 
 #one profile generation
-profile = cython_swps3.AlignmentProfile()
+profile = pyopa.AlignmentProfile()
 profile.create_profiles(s1, generated_env)
 
 #the following code produces the exact same result
@@ -73,29 +76,31 @@ profile.create_profiles(s1, generated_env)
 print profile.align_short(s3, generated_env)
 #---------------------------------------------------------------------------------------------------
 #always a local alignment
-print cython_swps3.align_scalar_reference_local(s1, s2, generated_env)
+print pyopa.align_scalar_reference_local(s1, s2, generated_env)
 #---------------------------------------------------------------------------------------------------
-s1_norm = cython_swps3.normalize_sequence(s1)
-s2_norm = cython_swps3.normalize_sequence(s2)
-s3_norm = cython_swps3.normalize_sequence(s3)
+s1_norm = pyopa.normalize_sequence('AATCGGA')
 
-#normalizing sequences in the background
-print cython_swps3.align_double(s1, s2, generated_env)
+#if the sequence comes from a normalized source
+s1 = pyopa.Sequence(s1_norm, True)
+s2 = pyopa.Sequence('AAAA')
 
-#passing normalized sequences and setting the is_normalized
-# flag, a more efficient solution
-print cython_swps3.align_double(s1_norm, s2_norm, generated_env, True)
+print s1
+print s2
+#construct from a byte array, prints ACCA
+print pyopa.Sequence([0, 2, 2, 0], True)
+
+print pyopa.align_double(s1, s2, generated_env)
 #---------------------------------------------------------------------------------------------------
-s1 = 'AATCGGA'
-s3 = 'CATACCTGGTGTGATGCC'
-#operating on normalized sequences, does not stop at threshold,
+s1 = pyopa.Sequence('AATCGGA')
+s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
+#does not stop at threshold,
 #  it is NOT a global alignment, and computes the ranges
-#returns [19.946195452221108, 6, 8, 0, 2], the first element is the score
+#returns [19.946, 6, 8, 0, 2], the first element is the score
 # the 4 other elements are [max1, max2, min1, min2] the ranges
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, True)
+print pyopa.align_double(s1, s3, generated_env, False, False, True)
 
 #returns [score, max1, max2]
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, False)
+print pyopa.align_double(s1, s3, generated_env, False, False, False)
 
 generated_env.threshold = 10.0
 #no generated_env.create_scaled_matrices() is needed
@@ -103,21 +108,21 @@ generated_env.threshold = 10.0
 
 #results in [11.499268729503227, 3, 0, 3, 0], not the best possible
 # local alignment, but still over the threshold of 10.0
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, True, False, True)
+print pyopa.align_double(s1, s3, generated_env, True, False, True)
 
 #global alignment, stop at threshold is ignored
-print cython_swps3.align_double(s1, s3, generated_env, False, True, True, True)
+print pyopa.align_double(s1, s3, generated_env, True, True, True)
 #---------------------------------------------------------------------------------------------------
 #to do the concrete alignment in a new thread
 def nt_align(s1, s2, env, is_global, aligned_strs):
     print 'Concrete %s alignment:' % ('global' if is_global else 'local')
-    tmp_aligned_strings = cython_swps3.align_strings(s1, s2, env, False, is_global)
+    tmp_aligned_strings = pyopa.align_strings(s1, s2, env, is_global)
     print '\taligned_s1: %s' % tmp_aligned_strings[0]
     print '\taligned_s2: %s' % tmp_aligned_strings[1]
     aligned_strs.extend(tmp_aligned_strings)
 
-s1 = 'PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF'
-s2 = 'PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY'
+s1 = pyopa.Sequence('PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF')
+s2 = pyopa.Sequence('PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY')
 threading.stack_size(100000000)
 
 # aligned_s1: PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKV
@@ -127,9 +132,10 @@ t = threading.Thread(None, nt_align,
                      'Aligning Thread', (s1, s2, generated_env, False, aligned_strings))
 t.start()
 t.join()
-print aligned_strings
+print aligned_strings[0]
+print aligned_strings[1]
 #---------------------------------------------------------------------------------------------------
-dms = cython_swps3.MutipleAlEnv(gen_env_list, log_pam1_env)
+dms = pyopa.MutipleAlEnv(gen_env_list, log_pam1_env)
 
 #returns an array: [similarity, pam_distance, variance]
 print dms.estimate_pam(aligned_strings[0], aligned_strings[1])

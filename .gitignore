@@ -15,5 +15,5 @@ test/data/matrices/C_compatible
 c_source/dblen
 c_source/swps3
 MANIFEST
-cython_swps3.c
+pyopa.c
 *.synctex.gz

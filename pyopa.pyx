@@ -1,4 +1,4 @@
-cimport cython_swps3
+cimport pyopa
 
 from math import log10
 
@@ -18,30 +18,26 @@ def run_tests():
     Runs the available unit tests.
     :return:
     """
-    test_dir = os.path.join(sys.prefix, 'cython_swps3_test')
+    test_dir = os.path.join(sys.prefix, 'pyopa_test')
     cmd = 'python -m unittest discover ' + test_dir
     print cmd
     call(cmd, shell=True)
 
 
-def normalize_sequence(s, allow_underscore=False):
+def normalize_sequence(s):
     """
     Subtracts the ASCII value of 'A' from every character in the given string. This is necessary because the C core
     is working on these kind of inputs.
 
     :param s: the string which we would like to transform
-    :param allow_underscore: Allows underscore characters in the input,
      the underscore characters will not be transformed
     :return: the transformed string
     """
-    ret = ""
-    if allow_underscore:
-        reg = re.compile('^[A-Z_]*$')
-    else:
-        reg = re.compile('^[A-Z]*$')
+    ret = ''
+    reg = re.compile('^[A-Z_]*$')
 
     if not reg.match(s):
-        raise Exception("Could not normalize '%s', because it contains invalid characters." % s)
+        raise ValueError("Could not normalize '%s', because it contains invalid characters." % s)
 
     for c in s:
         if c != '_':
@@ -66,7 +62,7 @@ def scale_to_byte(val, factor):
 
     #for an upper bound estimation overflow is a problem, but underflow is not
     if ret > 127:
-        raise Exception("Scaling overflow in scale_to_byte factor = %f, doubleValue = %f, result = %f" %
+        raise OverflowError("Scaling overflow in scale_to_byte factor = %f, doubleValue = %f, result = %f" %
                 (factor, val, ret))
 
     if ret < -128:
@@ -88,7 +84,7 @@ def scale_to_short(val, factor):
 
     #for an upper bound estimation overflow is a problem, but underflow is not
     if ret > 32767:
-        raise Exception("Scaling overflow in scaleToShort factor = %f, doubleValue = %f, result = %f" %
+        raise OverflowError("Scaling overflow in scaleToShort factor = %f, doubleValue = %f, result = %f" %
                         (factor, val, ret))
 
     if ret < -32768:
@@ -127,11 +123,11 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, th
     column_order = ''.join(column_order)
 
     if not reg.match(column_order):
-        raise Exception("Could not create environment with columns '%s', because it contains invalid characters." %
-                        column_order)
+        raise ValueError("Could not create environment with columns '%s', because it contains invalid characters." %
+                         column_order)
 
     if len(scores) != len(column_order):
-        raise Exception('The dimension of the matrix is not consistent with the column order')
+        raise ValueError('The dimension of the matrix is not consistent with the column order')
 
     #TODO check whether gap_open <= gap_ext?
 
@@ -147,7 +143,7 @@ def create_environment(gap_open, gap_ext, pam_distance, scores, column_order, th
     extended_matrix = [[0 for x in xrange(26)] for x in xrange(26)]
     for i in range(0, len(column_order)):
         if len(compact_matrix[i]) != len(column_order):
-            raise Exception('The dimension of the matrix is not consistent with the column order')
+            raise ValueError('The dimension of the matrix is not consistent with the column order')
         for j in range(0, len(column_order)):
             extended_matrix[ord(column_order[i]) - ord('A')][ord(column_order[j]) - ord('A')] = compact_matrix[i][j]
 
@@ -162,7 +158,6 @@ def read_env_json(json_data):
     """
     This function reads an AlignmentEnvironment from a JSON object or a file that contains the JSON data
     :param json_data: the JSON object from which we want to read the environment or a JSON file
-    :param columns: defines the order of the matrix columns and rows
     :return: the environment
     """
     if isinstance(json_data, basestring):
@@ -190,7 +185,7 @@ def read_all_env_json(file_loc):
     return ret
 
 
-def align_short(s1, s2, env, is_normalized=False):
+def align_short(s1, s2, env):
     """
     Aligns two sequences by using the matrix and gap costs defined in the file/AlignmentEnvironment.
     This is not an efficient way to align
@@ -199,18 +194,17 @@ def align_short(s1, s2, env, is_normalized=False):
     :param s1: first string of the alignment
     :param s2: second string of the alignment
     :param env: file that contains the matrix in JSON format or an AlignmentEnvironment
-    :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the short estimation of the score
     """
     p = AlignmentProfile()
     if isinstance(env, basestring):
         env = read_env_json(env)
-    p.create_profiles(s1, env, is_normalized)
+    p.create_profiles(s1, env)
 
-    return p.align_short(s2, env, is_normalized)
+    return p.align_short(s2, env)
 
 
-def align_byte(s1, s2, env, is_normalized=False):
+def align_byte(s1, s2, env):
     """
     Aligns two sequences by using the matrix and gap costs defined in the file/AlignmentEnvironment.
     This is not an efficient way to align
@@ -219,15 +213,14 @@ def align_byte(s1, s2, env, is_normalized=False):
     :param s1: first string of the alignment
     :param s2: second string of the alignment
     :param env: file that contains the matrix in JSON format or an AlignmentEnvironment
-    :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the byte estimation of the score
     """
     p = AlignmentProfile()
     if isinstance(env, basestring):
         env = read_env_json(env)
-    p.create_profiles(s1, env, is_normalized)
+    p.create_profiles(s1, env)
 
-    return p.align_byte(s2, env, is_normalized)
+    return p.align_byte(s2, env)
 
 
 cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,ndim=2] matrix, const char *s1,
@@ -245,7 +238,7 @@ cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,nd
     :param threshold: the threshold used for the calculation (might be ignored)
     :return: the exact scalar score
     """
-    return cython_swps3.c_align_scalar_reference_local(<double*> matrix.data, s1, ls1, s2, ls2,
+    return pyopa.c_align_scalar_reference_local(<double*> matrix.data, s1, ls1, s2, ls2,
                                                        gap_open, gap_ext, threshold)
 
 
@@ -273,10 +266,10 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     ret = []
 
     if not is_global:
-        res = cython_swps3.c_align_double_local(<double*> matrix.data, s1, ls1, s2, ls2,
+        res = pyopa.c_align_double_local(<double*> matrix.data, s1, ls1, s2, ls2,
                                        gap_open, gap_ext, threshold, max1, max2)
     else:
-        res = cython_swps3.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
+        res = pyopa.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
                                        gap_open, gap_ext)
         max1[0] = ls1
         max2[0] = ls2
@@ -288,27 +281,25 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     return ret
 
 
-cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_alignment=None):
+cpdef align_strings(s1, s2, env, is_global=False, provided_alignment=None):
     """
     Does the concrete string alignment for two given strings.
     :param s1: first sequence
     :param s2: second sequence
     :param env: AlignmentEnvironment to be used
-    :param is_normalized:
     :param is_global:
     :param provided_alignment: If given, we can save up the calculation of the ranges and the scores.
      The provided alignment must contain the FULL ranges and the score.
     :return: the two aligned strings
     """
     if provided_alignment is None:
-        provided_alignment = align_double(s1, s2, env, is_normalized, False, is_global, True)
+        provided_alignment = align_double(s1, s2, env, False, is_global, True)
     elif len(provided_alignment) != 5:
-        raise Exception('The provided alignment is invalid.'
+        raise ValueError('The provided alignment is invalid.'
                         ' It should contain the score, and the ranges for both sequences.')
 
-    if not is_normalized:
-        s1 = normalize_sequence(s1)
-        s2 = normalize_sequence(s2)
+    s1 = s1.s_norm
+    s2 = s2.s_norm
 
     if not is_global:
         s1 = s1[provided_alignment[3]:provided_alignment[1] + 1]
@@ -323,39 +314,34 @@ cpdef align_strings(s1, s2, env, is_normalized=False, is_global=False, provided_
 
     cdef np.ndarray[np.double_t,ndim=2] matrix = env.float64_matrix
 
-    max_len = cython_swps3.c_align_strings(<double*> matrix.data, s1, len(s1),
+    max_len = pyopa.c_align_strings(<double*> matrix.data, s1, len(s1),
                                  s2, len(s2), provided_alignment[0], o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
 
-    #denormalize the result strings and keep the _-s
+    o1_p = [0] * max_len
+    o2_p = [0] * max_len
     for i in range(max_len):
-        if o1[i] != '_':
-            aligned_s1 += chr(ord('A') + o1[i])
-        else:
-            aligned_s1 += '_'
+        o1_p[i] = o1[i]
+        o2_p[i] = o2[i]
 
-        if o2[i] != '_':
-            aligned_s2 += chr(ord('A') + o2[i])
-        else:
-            aligned_s2 += '_'
+    aligned_s1 = Sequence(o1_p, True)
+    aligned_s2 = Sequence(o2_p, True)
 
     return [aligned_s1, aligned_s2]
 
-def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_global=False, calculate_ranges=True):
+def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculate_ranges=True):
     """
     A vectorized implementation of the double precision alignment algorithm.
     :param s1:
     :param s2:
     :param env:
-    :param is_normalized:
     :param stop_at_threshold: if True, we terminate on reaching the threshold and return the score just over it
     :param is_global:
     :param calculate_ranges: if True, we calculate the full ranges for the alignment
     :return: an array of [score, max1, max2] if calculate ranges is false and  [score, max1, max2, min1, min2] if it's
     true
     """
-    if not is_normalized:
-        s1 = normalize_sequence(s1)
-        s2 = normalize_sequence(s2)
+    s1 = s1.s_norm
+    s2 = s2.s_norm
 
     if not stop_at_threshold:
         res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
@@ -382,20 +368,16 @@ def align_double(s1, s2, env, is_normalized=False, stop_at_threshold=False, is_g
 
     return res
 
-def align_scalar_reference_local(s1, s2, env, is_normalized=False):
+def align_scalar_reference_local(s1, s2, env):
     """
     This is a simpler interface to the scalar alignment function written in C by using the AlignmentEnvironment python
     class. This is a reference implementation and not vectorized.
     :param s1: first string
     :param s2: second string
     :param env: the AlignmentEnvironment to be used
-    :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
     :return: the exact scalar score
     """
-    if not is_normalized:
-        s1 = normalize_sequence(s1)
-        s2 = normalize_sequence(s2)
-    return c_align_scalar_normalized_reference_local(env.float64_matrix, s1, len(s1), s2, len(s2),
+    return c_align_scalar_normalized_reference_local(env.float64_matrix, s1.s_norm, len(s1), s2.s_norm, len(s2),
                                      env.gap_open, env.gap_ext, env.threshold)
 
 cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
@@ -442,6 +424,55 @@ def generate_all_env(log_pam1_env, env_num, starting_pam=0.049449734348559203348
     return envs
 
 
+class Sequence:
+    def __init__(self, s, is_normalized=False):
+
+        if isinstance(s, basestring):
+            if not is_normalized:
+                self.s_norm = normalize_sequence(s)
+            else:
+                self.s_norm = s
+        elif isinstance(s, list):
+            self.s_norm = ''.join(map(chr, s))
+            if not is_normalized:
+                self.s_norm = normalize_sequence(self.s_norm)
+        else:
+            raise ValueError('Cannot construct Sequence from the given type!')
+
+    def __str__(self):
+        return self.convert_readable()
+
+    def __eq__(self, other):
+        if isinstance(other, Sequence):
+            return self.s_norm == other.s_norm
+        elif isinstance(other, basestring):
+            return self.s_norm == normalize_sequence(other)
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        result = self.__eq__(other)
+
+        if result is NotImplemented:
+            return result
+
+        return not result
+
+    def __len__(self):
+        return len(self.s_norm)
+
+    def convert_readable(self):
+        readable = ''
+
+        for c in self.s_norm:
+            if c == '_':
+                readable += '_'
+            else:
+                readable += chr(ord('A') + ord(c))
+
+        return readable
+
+
 cdef class AlignmentProfile:
     """
     This class is used to facilitate multiple alignment by using the same query and matrix with the C core SSE byte and
@@ -451,8 +482,8 @@ cdef class AlignmentProfile:
     """
 
     #to store and free the profile generated from C
-    cdef cython_swps3.ProfileByte* _c_profileByte
-    cdef cython_swps3.ProfileShort* _c_profileShort
+    cdef pyopa.ProfileByte* _c_profileByte
+    cdef pyopa.ProfileShort* _c_profileShort
 
 
     def __cinit__(self):
@@ -462,83 +493,76 @@ cdef class AlignmentProfile:
 
     def __dealloc__(self):
         if self._c_profileByte is not NULL:
-            cython_swps3.c_free_profile_byte_sse_local(self._c_profileByte)
+            pyopa.c_free_profile_byte_sse_local(self._c_profileByte)
 
         if self._c_profileShort is not NULL:
-            cython_swps3.c_free_profile_short_sse_local(self._c_profileShort)
+            pyopa.c_free_profile_short_sse_local(self._c_profileShort)
 
 
-    def create_profiles(self, query, env, is_normalized = False):
+    def create_profiles(self, query, env):
         """
         Creates the byte and the short profile by using the environment's short and byte matrices
         :param query: the query from which we want to create the profiles
         :param env: the environment that contains the scaled byte and short matrices
-        :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
         """
-        self.create_profile_byte(query, env.int8_matrix, is_normalized)
-        self.create_profile_short(query, env.int16_matrix, is_normalized)
+        self.create_profile_byte(query, env.int8_matrix)
+        self.create_profile_short(query, env.int16_matrix)
 
 
-    cpdef create_profile_byte(self, query, np.ndarray[np.int8_t,ndim=2] matrix, is_normalized = False):
+    cpdef create_profile_byte(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
         """
         Creates a byte profile from the given query and matrix. The query string must be normalized but the matrix
         must be scaled to the byte version.
 
         :param query: the query string which we want to use for the profile
         :param matrix: the matrix which we want to use for the profile (must be scaled to bytes)
-        :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
         """
 
         if matrix.shape[0] != 26 or  matrix.shape[1] != 26:
-            raise Exception("Invalid matrix shape, the matrix must be 26x26.")
+            raise ValueError("Invalid matrix shape, the matrix must be 26x26.")
 
-        if not is_normalized:
-            query = normalize_sequence(query)
+        query = query.s_norm
 
         if self._c_profileByte is not NULL:
-            cython_swps3.c_free_profile_byte_sse_local(self._c_profileByte)
+            pyopa.c_free_profile_byte_sse_local(self._c_profileByte)
 
-        self._c_profileByte = cython_swps3.c_create_profile_byte_sse_local(query, len(query), <signed char*> matrix.data)
+        self._c_profileByte = pyopa.c_create_profile_byte_sse_local(query, len(query), <signed char*> matrix.data)
 
 
-    cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix, is_normalized = False):
+    cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
         """
         Creates a short profile from the given query and matrix. The query string must be normalized but the matrix
         must be scaled to the short version.
 
         :param query: the query string which we want to use for the profile
         :param matrix: the matrix which we want to use for the profile (must be scaled to shorts)
-        :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
         """
 
         if matrix.shape[0] != 26 or matrix.shape[1] != 26:
-            raise Exception("Invalid matrix shape, the matrix must be 26x26.")
+            raise ValueError("Invalid matrix shape, the matrix must be 26x26.")
 
-        if not is_normalized:
-            query = normalize_sequence(query)
+        query = query.s_norm
 
         if self._c_profileShort is not NULL:
-            cython_swps3.c_free_profile_short_sse_local(self._c_profileShort)
+            pyopa.c_free_profile_short_sse_local(self._c_profileShort)
 
-        self._c_profileShort = cython_swps3.c_create_profile_short_sse_local(query, len(query),
+        self._c_profileShort = pyopa.c_create_profile_short_sse_local(query, len(query),
                                                                              <signed short*> matrix.data)
 
 
-    cpdef align_byte(self, s2, env, is_normalized = False):
+    cpdef align_byte(self, s2, env):
         """
         Aligns the string s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using byte
         SSE alignment.
 
         :param s2: the string which we would like to align to the profile, this input string must be normalized
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
-        :param is_normalized: should be True if the inputs are already normalized by the normalize_sequence function
         :return: the result of the byte alignment
         """
 
-        if not is_normalized:
-            s2 = normalize_sequence(s2)
+        s2 = s2.s_norm
 
-        ret = cython_swps3.c_align_profile_byte_sse_local(self._c_profileByte, s2, len(s2),
+        ret = pyopa.c_align_profile_byte_sse_local(self._c_profileByte, s2, len(s2),
                                                       env.int8_gap_open, env.int8_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -547,20 +571,18 @@ cdef class AlignmentProfile:
         return scale_back(ret, env.byte_factor())
 
 
-    cpdef align_short(self, s2, env, is_normalized=False):
+    cpdef align_short(self, s2, env):
         """
         Aligns the string s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using short
         SSE alignment.
 
-        :param s2: the string which we would like to align to the profile, this input string must be normalized
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
         :return: the result of the short alignment
         """
 
-        if not is_normalized:
-            s2 = normalize_sequence(s2)
+        s2 = s2.s_norm
 
-        ret = cython_swps3.c_align_profile_short_sse_local(self._c_profileShort,
+        ret = pyopa.c_align_profile_short_sse_local(self._c_profileShort,
                                                        s2, len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -636,7 +658,7 @@ cdef class MutipleAlEnv:
      AlignmentEnvironments and can be used to call the EstimatePam function, which is implemented in C.
     """
 
-    cdef cython_swps3.DayMatrix* _c_dayMatrices
+    cdef pyopa.DayMatrix* _c_dayMatrices
     cdef int dms_len
     cdef log_pam1
 
@@ -665,20 +687,18 @@ cdef class MutipleAlEnv:
             pam_dist[i] = envs[i-1].pam
             matrices[i] = envs[i-1].float64_matrix.ctypes.data
 
-        self._c_dayMatrices = cython_swps3.createDayMatrices(<double*> gap_open.data, <double*> gap_ext.data,
+        self._c_dayMatrices = pyopa.createDayMatrices(<double*> gap_open.data, <double*> gap_ext.data,
                     <double*> pam_dist.data, <long long*> matrices.data, self.dms_len)
 
-    def estimate_pam(self, s1, s2, is_normalized=False):
+    def estimate_pam(self, s1, s2):
         if len(s1) != len(s2):
-            raise Exception('The length of s1 and s2 must be equal!')
-        if not is_normalized:
-            s1 = normalize_sequence(s1, True)
-            s2 = normalize_sequence(s2, True)
+            raise ValueError('The length of s1 and s2 must be equal!')
 
         cdef double result[3]
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
 
-        cython_swps3.EstimatePam(s1, s2, len(s1), self._c_dayMatrices, self.dms_len, <double*> logpam.data, result)
+        pyopa.EstimatePam(s1.s_norm, s2.s_norm, len(s1),
+                          self._c_dayMatrices, self.dms_len, <double*> logpam.data, result)
         ret = [0.0] * 3
         ret[0] = result[0]
         ret[1] = result[1]
@@ -688,5 +708,5 @@ cdef class MutipleAlEnv:
 
     def free(self):
         if self._c_dayMatrices is not NULL:
-            cython_swps3.freeDayMatrices(self._c_dayMatrices, self.dms_len)
+            pyopa.freeDayMatrices(self._c_dayMatrices, self.dms_len)
 

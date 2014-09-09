@@ -74,9 +74,9 @@ python install setup.py
 
 to install \pp{}. This should compile and install all the necessary files without any problems. To check whether the unit tests produce correct results on your computer, you can simply run them by a singe function call:
 \begin{lstlisting}
-import PyOPA
+import pyopa
 
-PyOPA.run_tests()
+pyopa.run_tests()
 \end{lstlisting}
 
 Unless you have your own data files (where you define, for example, the distance matrix, gap opening and extension costs), you have to use one of the matrices coming with \pp{}. All the data files that is necessary to run the unit tests and future operations on sequences are automatically installed into a separate folder (\emph{\textless{}sys.prefix\textgreater/\pp{}\_test/}) during installation. If you cannot locate or access the data files, you can download \pp{} and extract all of the files manually. The data files should be available under \emph{test/data/}, which you can use for future alignments. 
@@ -86,22 +86,25 @@ Under \emph{test/} and \emph{examples/} you can find a variety of well-commented
 \section{Features}
 \label{sec:features}
 
-\subsection{Normalizing Sequences}
+\subsection{Sequence class}
 \label{subsec:normseq}
 The C core does not operate on sequences consist of upper-case letters of the English alphabet, but instead it uses byte arrays generated from the original sequences by deducting \emph{chr('A')} from every single character in the given sequences. Because of this, for every single operation the participant sequences should be transformed, which is clearly a waste of time.
 
-Therefore, every function and method that operates on sequences has an optional (false by default) parameter, where you can specify whether the given parameter is already transformed. When we align multiple consecutive sequences, like an all against all, we should normalize the sequences beforehand:
+To hide this behaviour (and cache the normalized sequences), these functions operate on a \emph{Sequence} object, which can be constructed from a string or a byte list (and their normalized versions).
 
 \begin{lstlisting}
-s1_norm = cython_swps3.normalize_sequence(s1)
-s2_norm = cython_swps3.normalize_sequence(s2)
+s1_norm = pyopa.normalize_sequence('AATCGGA')
 
-#normalizing sequences in the background
-print cython_swps3.align_double(s1, s2, generated_env)
+#if the sequence comes from a normalized source
+s1 = pyopa.Sequence(s1_norm, True)
+s2 = pyopa.Sequence('AAAA')
 
-#passing normalized sequences and setting the is_normalized
-# flag, a more efficient solution
-print cython_swps3.align_double(s1_norm, s2_norm, generated_env, True)
+print s1
+print s2
+#construct from a byte array, prints ACCA
+print pyopa.Sequence([0, 2, 2, 0], True)
+
+print pyopa.align_double(s1, s2, generated_env)
 \end{lstlisting}
 
 
@@ -119,14 +122,17 @@ data = {'gap_open': -20.56,
         'column_order': 'A',
         'threshold': 50.0}
 
-env = cython_swps3.create_environment(**data)
+env = pyopa.create_environment(**data)
+
+s1 = pyopa.Sequence('AAA')
+s2 = pyopa.Sequence('TTT')
 
 #prints [30.0, 2, 2, 0, 0], the first element is the score
-print cython_swps3.align_double('AAA', 'AAA', env)
+print pyopa.align_double(s1, s1, env)
 
 #prints [0.0, -1, -1, 0, 0], the score is 0
 # since the score for 'A -> T' is undefined
-print cython_swps3.align_double('TTT', 'AAA', env)
+print pyopa.align_double(s2, s1, env)
 \end{lstlisting}
 
 In this simple example, we used a really simple distance matrix with a single element, which means only the \emph{A $\rightarrow$ A} score is defined. When you create an \alenv{} the dimension of the matrix and the length of the columns must be the same, however, during the construction  this provided distance matrix is always extended into a 26x26 one, which consists of the scores for [A-Z]. The undefined cells of the matrix are filled with zeros (in this case every cell, except for the first one).
@@ -136,9 +142,9 @@ Because of this, aligning \emph{AAA} to \emph{AAA} gives a result of 30.0, where
 
 Alternatively, you can either read a single \alenv{} or multiple ones from a JSON-formatted file:
 \begin{lstlisting}
-env_list = cython_swps3.read_all_env_json(
+env_list = pyopa.read_all_env_json(
     os.path.join(data_dir, 'all_matrices.json'))
-log_pam1 = cython_swps3.read_env_json(
+log_pam1_env = pyopa.read_env_json(
     os.path.join(data_dir, 'logPAM1.json'))
 \end{lstlisting}
 
@@ -149,10 +155,10 @@ Another possibility is to generate the distance matrices and gap costs from a si
 \begin{lstlisting}
 #generates a signle AlignmentEnvironment
 # with a pam distance of 250
-generated_env = cython_swps3.generate_env(log_pam1_env, 250)
+generated_env = pyopa.generate_env(log_pam1_env, 250)
 
 #generates 1000 environments for different pam distances
-gen_env_list = cython_swps3.generate_all_env(log_pam1_env, 1000)
+gen_env_list = pyopa.generate_all_env(log_pam1_env, 1000)
 \end{lstlisting}
 
 For each generation a log\_pam1 \alenv{} should be used.
@@ -171,18 +177,18 @@ After the transformations, we can cram multiple elements into a single register 
 To hasten the estimation further, we can create so-called profiles for a given $S$ sequence and matrix combination. After a profile is created, we can use it for multiple alignments to the same $S$ and matrix combination (the gap scores can be changed, by redefining in the provided \alenv{}):
 
 \begin{lstlisting}
-s1 = 'AATCGGA'
-s2 = 'AAAA'
-s3 = 'CATACCTGGTGTGATGCC'
+s1 = pyopa.Sequence('AATCGGA')
+s2 = pyopa.Sequence('AAAA')
+s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
 
-#not optimal, two hidden profile generation in the background
-print cython_swps3.align_short(s1, s2, generated_env)
-print cython_swps3.align_short(s1, s3, generated_env)
-print cython_swps3.align_byte(s1, s2, generated_env)
-print cython_swps3.align_byte(s1, s3, generated_env)
+#not optimal, multiple hidden profile generations in the background
+print pyopa.align_short(s1, s2, generated_env)
+print pyopa.align_short(s1, s3, generated_env)
+print pyopa.align_byte(s1, s2, generated_env)
+print pyopa.align_byte(s1, s3, generated_env)
 
 #one profile generation
-profile = cython_swps3.AlignmentProfile()
+profile = pyopa.AlignmentProfile()
 profile.create_profiles(s1, generated_env)
 
 #the following code produces the exact same result
@@ -221,22 +227,22 @@ The first available Python function is a reference implementation of the Smith-W
 
 \begin{lstlisting}
 #always a local alignment
-print cython_swps3.align_scalar_reference_local(s1, s2, generated_env)
+print pyopa.align_scalar_reference_local(s1, s2, generated_env)
 \end{lstlisting}
 
 The second, more efficient and vectorised solution is also capable of global alignments and can also provide the ranges of the local alignment on demand. By setting the \emph{stop\_at\_threshold} argument true, we can terminate the score computation if it reaches the provided threshold:
 
 \begin{lstlisting}
-s1 = 'AATCGGA'
-s3 = 'CATACCTGGTGTGATGCC'
-#operating on normalized sequences, does not stop at threshold,
+s1 = pyopa.Sequence('AATCGGA')
+s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
+#does not stop at threshold,
 #  it is NOT a global alignment, and computes the ranges
-#returns [19.946195452221108, 6, 8, 0, 2], the first element is the score
+#returns [19.946, 6, 8, 0, 2], the first element is the score
 # the 4 other elements are [max1, max2, min1, min2] the ranges
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, True)
+print pyopa.align_double(s1, s3, generated_env, False, False, True)
 
 #returns [score, max1, max2]
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, False, False, False)
+print pyopa.align_double(s1, s3, generated_env, False, False, False)
 
 generated_env.threshold = 10.0
 #no generated_env.create_scaled_matrices() is needed
@@ -244,10 +250,10 @@ generated_env.threshold = 10.0
 
 #results in [11.499268729503227, 3, 0, 3, 0], not the best possible
 # local alignment, but still over the threshold of 10.0
-print cython_swps3.align_double(s1_norm, s3_norm, generated_env, True, True, False, True)
+print pyopa.align_double(s1, s3, generated_env, True, False, True)
 
 #global alignment, stop at threshold is ignored
-print cython_swps3.align_double(s1, s3, generated_env, False, True, True, True)
+print pyopa.align_double(s1, s3, generated_env, True, True, True)
 \end{lstlisting}
 
 In the example given above, \emph{s1[0:6] = AATCGGA} has been aligned to \emph{s3[2:8] = TACCTGG}. If we do not require the full ranges, the \emph{max1} and \emph{max2} values are still provided, so in this case the result is an array with three elements.
@@ -265,15 +271,16 @@ resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM
 Another, more general approach is to start the operation in a new thread with a given stack size:
 
 \begin{lstlisting}
+#to do the concrete alignment in a new thread
 def nt_align(s1, s2, env, is_global, aligned_strs):
     print 'Concrete %s alignment:' % ('global' if is_global else 'local')
-    tmp_aligned_strings = cython_swps3.align_strings(s1, s2, env, False, is_global)
+    tmp_aligned_strings = pyopa.align_strings(s1, s2, env, is_global)
     print '\taligned_s1: %s' % tmp_aligned_strings[0]
     print '\taligned_s2: %s' % tmp_aligned_strings[1]
     aligned_strs.extend(tmp_aligned_strings)
 
-s1 = 'PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF'
-s2 = 'PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY'
+s1 = pyopa.Sequence('PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF')
+s2 = pyopa.Sequence('PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY')
 threading.stack_size(100000000)
 
 # aligned_s1: PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKV
@@ -283,7 +290,8 @@ t = threading.Thread(None, nt_align,
                      'Aligning Thread', (s1, s2, generated_env, False, aligned_strings))
 t.start()
 t.join()
-print aligned_strings
+print aligned_strings[0]
+print aligned_strings[1]
 \end{lstlisting}
 
 \subsection{EstimatePam}
@@ -294,10 +302,11 @@ For two given aligned sequences, the \emph{EstimatePam} function computes maximu
 From a list of \emph{AlignmentEnvironments} and a \emph{log\_pam1} environment we can create the necessary data structure which can be used for computing the estimations.
 
 \begin{lstlisting}
-dms = cython_swps3.MutipleAlEnv(gen_env_list, log_pam1_env)
+dms = pyopa.MutipleAlEnv(gen_env_list, log_pam1_env)
 
 #returns an array: [similarity, pam_distance, variance]
 print dms.estimate_pam(aligned_strings[0], aligned_strings[1])
+
 \end{lstlisting}
 
 The first element of the array is the estimated similarity score, which is always higher than the actual score, the second element is the estimated evolutionary distance and the third one is the variance.

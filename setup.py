@@ -6,7 +6,7 @@ import sys
 import os
 
 
-package_name = 'cython_swps3'
+package_name = 'pyopa'
 
 c_dir = 'c_source/'
 c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c',

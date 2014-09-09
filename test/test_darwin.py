@@ -1,7 +1,7 @@
 import unittest
 import os
 import csv
-import cython_swps3
+import pyopa
 import sys
 import json
 import threading
@@ -49,21 +49,20 @@ class AlignTest(unittest.TestCase):
         with open(os.path.dirname(__file__) + '/data/testseqs.txt') as f:
             self.sequences = f.readlines()
 
-        self.sequences = map(lambda s: s.strip(), self.sequences)
-        self.sequences_normalized = map(lambda s: cython_swps3.normalize_sequence(s), self.sequences)
+        self.sequences = map(lambda s: pyopa.Sequence(s.strip()), self.sequences)
         self.darwin_results = []
-        self.alignment_environments = cython_swps3.read_all_env_json(
+        self.alignment_environments = pyopa.read_all_env_json(
             os.path.dirname(__file__) + '/data/matrices/json/all_matrices.json')
 
-        self.log_pam1 = cython_swps3.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
-        self.dms = cython_swps3.MutipleAlEnv(self.alignment_environments, self.log_pam1)
+        self.log_pam1 = pyopa.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
+        self.dms = pyopa.MutipleAlEnv(self.alignment_environments, self.log_pam1)
 
         """
         write_all_env_files(self.alignment_environments)
         with open(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json') as lp:
             json_data = json.load(lp)
             #json_data["Scores"] = map(lambda l: map(lambda s: s/(2048*2048*2048), l), json_data["Scores"])
-            logPAM1 = cython_swps3.read_env_json(json_data, self.alignment_environments[0].columns)
+            logPAM1 = pyopa.read_env_json(json_data, self.alignment_environments[0].columns)
             write_env_file(logPAM1, "logPAM1")
         """
 
@@ -94,7 +93,7 @@ class AlignTest(unittest.TestCase):
 
                 '''
                 if curr.s1_id not in self.alignment_profiles:
-                    p = cython_swps3.AlignmentProfile()
+                    p = pyopa.AlignmentProfile()
                     p.create_profiles(self.sequences[curr.s1_id - 1], self.alignment_environments[curr.s1_id - 1])
                     self.alignment_profiles[curr.s1_id] = p
                 '''
@@ -112,24 +111,24 @@ class AlignTest(unittest.TestCase):
         progress_step = max_alignments / 100
 
         for r in self.darwin_results:
-            s1 = self.sequences_normalized[r.s1_id - 1]
-            s2 = self.sequences_normalized[r.s2_id - 1]
+            s1 = self.sequences[r.s1_id - 1]
+            s2 = self.sequences[r.s2_id - 1]
             env = self.alignment_environments[r.matrix_nr - 1]
             env.threshold = r.threshold
             env.create_scaled_matrices()
 
             #profile = self.alignment_profiles[r.s1_id]
-            profile = cython_swps3.AlignmentProfile()
-            profile.create_profiles(s1, env, True)
+            profile = pyopa.AlignmentProfile()
+            profile.create_profiles(s1, env)
 
-            scalar_result_reference = cython_swps3.align_scalar_reference_local(s1, s2, env, True)
-            double_alignment = cython_swps3.align_double(s1, s2, env, True, False, False, True)
+            scalar_result_reference = pyopa.align_scalar_reference_local(s1, s2, env)
+            double_alignment = pyopa.align_double(s1, s2, env, False, False, True)
             double_result = double_alignment[0]
-            byte_result = profile.align_byte(s2, env, True)
-            short_result = profile.align_short(s2, env, True)
+            byte_result = profile.align_byte(s2, env)
+            short_result = profile.align_short(s2, env)
 
             if r.als1 != '':
-                aligned_strings = cython_swps3.align_strings(s1, s2, env, True, False, double_alignment)
+                aligned_strings = pyopa.align_strings(s1, s2, env, False, double_alignment)
                 ep_result = self.dms.estimate_pam(aligned_strings[0], aligned_strings[1])
                 self.assertEqual(aligned_strings[0], r.als1)
                 self.assertEqual(aligned_strings[1], r.als2)
@@ -181,7 +180,7 @@ class AlignTest(unittest.TestCase):
 
     def test_generated_envs(self):
         print 'Testing generated matrices'
-        generated_envs = cython_swps3.generate_all_env(self.log_pam1, 1266)
+        generated_envs = pyopa.generate_all_env(self.log_pam1, 1266)
         for i in range(1266):
             curr_ref = self.alignment_environments[i]
             curr_gen = generated_envs[i]
@@ -189,7 +188,7 @@ class AlignTest(unittest.TestCase):
             self.assertAlmostEqual(curr_ref.threshold, curr_gen.threshold)
             self.assertAlmostEqual(curr_ref.gap_open, curr_gen.gap_open)
             self.assertAlmostEqual(curr_ref.gap_ext, curr_gen.gap_ext)
-            self.assertEqual(curr_ref.columns, curr_gen.columns)
+
             for j in range(26):
                 for k in range(26):
                     self.assertAlmostEqual(curr_ref.float64_matrix[j][k], curr_gen.float64_matrix[j][k])

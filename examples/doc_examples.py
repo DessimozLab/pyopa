@@ -107,7 +107,7 @@ s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
 # the 4 other elements are [max1, max2, min1, min2] the ranges
 print pyopa.align_double(s1, s3, generated_env, False, False, True)
 
-#returns [score, max1, max2]
+#returns [score, max1, max2] because the last flag (calculate ranges) is false
 print pyopa.align_double(s1, s3, generated_env, False, False, False)
 
 generated_env.threshold = 10.0
@@ -122,6 +122,8 @@ print pyopa.align_double(s1, s3, generated_env, True, False, True)
 print pyopa.align_double(s1, s3, generated_env, True, True, True)
 #---------------------------------------------------------------------------------------------------
 #to do the concrete alignment in a new thread
+#or alternatively you can increase your stack size on UNIX-based systems:
+#'resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))'
 def nt_align(s1, s2, env, is_global, aligned_strs):
     print 'Concrete %s alignment:' % ('global' if is_global else 'local')
     tmp_aligned_strings = pyopa.align_strings(s1, s2, env, is_global)

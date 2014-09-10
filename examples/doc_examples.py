@@ -24,12 +24,20 @@ print pyopa.align_double(s1, s1, env)
 print pyopa.align_double(s2, s1, env)
 
 #---------------------------------------------------------------------------------------------------
-data_dir = os.path.dirname(__file__) +\
-           '/../test/data/matrices/json/'
+#loading the default environments from the data directory
+# created at installation time
+defaults = pyopa.load_default_environments()
+env_list = defaults['environments']
+log_pam1_env = defaults['log_pam1']
+
+#the default directory (created at installation time)
+matrix_dir = pyopa.matrix_dir()
+
+#or alternatively, you can specify an exact location
 env_list = pyopa.read_all_env_json(
-    os.path.join(data_dir, 'all_matrices.json'))
+    os.path.join(matrix_dir, 'all_matrices.json'))
 log_pam1_env = pyopa.read_env_json(
-    os.path.join(data_dir, 'logPAM1.json'))
+    os.path.join(matrix_dir, 'logPAM1.json'))
 #---------------------------------------------------------------------------------------------------
 #generates a signle AlignmentEnvironment
 # with a pam distance of 250

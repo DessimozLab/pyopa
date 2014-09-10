@@ -69,7 +69,7 @@ If you are able to install \emph{NumPy} and \emph{Cython} without any problems b
 Another possibility is to download, extract and install the package manually. After extracting the project into a separate folder, you should navigate into the directory and use
 
 \begin{lstlisting}
-python install setup.py
+python setup.py install
 \end{lstlisting}
 
 to install \pp{}. This should compile and install all the necessary files without any problems. To check whether the unit tests produce correct results on your computer, you can simply run them by a singe function call:
@@ -142,10 +142,19 @@ Because of this, aligning \emph{AAA} to \emph{AAA} gives a result of 30.0, where
 
 Alternatively, you can either read a single \alenv{} or multiple ones from a JSON-formatted file:
 \begin{lstlisting}
+#loading the default environments
+defaults = pyopa.load_default_environments()
+env_list = defaults['environments']
+log_pam1_env = defaults['log_pam1']
+
+#the default directory (created at installation time)
+matrix_dir = pyopa.matrix_dir()
+
+#or alternatively, you can specify an exact location
 env_list = pyopa.read_all_env_json(
-    os.path.join(data_dir, 'all_matrices.json'))
+    os.path.join(matrix_dir, 'all_matrices.json'))
 log_pam1_env = pyopa.read_env_json(
-    os.path.join(data_dir, 'logPAM1.json'))
+    os.path.join(matrix_dir, 'logPAM1.json'))
 \end{lstlisting}
 
 Precomputed matrices stored in JSON are also coming with the package, see in Section \ref{sec:inst}.

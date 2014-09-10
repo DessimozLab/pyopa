@@ -8,18 +8,55 @@ import json
 import sys
 import math
 import os
-import fnmatch
 import re
-import ctypes
 from subprocess import call
+
+
+def test_dir():
+    """
+    This function returns a path to the default test directory (the directory that should be created during
+    installation time, if the user has appropriate permissions).
+    :return: the default data directory
+    """
+    default_test_dir = os.path.join(sys.prefix, 'pyopa_test')
+    if not os.path.exists(default_test_dir):
+        raise IOError('The default test directory does not exists at !' % default_test_dir)
+
+    return default_test_dir
+
+
+def data_dir():
+    default_data_dir = os.path.join(test_dir(), 'data/')
+
+    if not os.path.exists(default_data_dir):
+        raise IOError('The default data directory does not exists at %s!' % default_data_dir)
+
+    return default_data_dir
+
+
+def matrix_dir():
+    default_matrix_dir = os.path.join(test_dir(), 'data/matrices/json/')
+
+    if not os.path.exists(default_matrix_dir):
+        raise IOError('The default matrix directory does not exists at %s!' % default_matrix_dir)
+
+    return default_matrix_dir
+
+
+def load_default_environments():
+    default_envs = {
+        'environments': read_all_env_json(os.path.join(matrix_dir(), 'all_matrices.json')),
+        'log_pam1': read_env_json((os.path.join(matrix_dir(), 'logPAM1.json')))
+    }
+    return default_envs
+
 
 def run_tests():
     """
     Runs the available unit tests.
     :return:
     """
-    test_dir = os.path.join(sys.prefix, 'pyopa_test')
-    cmd = 'python -m unittest discover ' + test_dir
+    cmd = 'python -m unittest discover ' + test_dir()
     print cmd
     call(cmd, shell=True)
 

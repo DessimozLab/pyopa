@@ -46,15 +46,15 @@ class AlignTest(unittest.TestCase):
         self.precision = 10
         #resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
-        with open(os.path.dirname(__file__) + '/data/testseqs.txt') as f:
+        with open(os.path.join(pyopa.data_dir(), 'testseqs.txt')) as f:
             self.sequences = f.readlines()
 
         self.sequences = map(lambda s: pyopa.Sequence(s.strip()), self.sequences)
         self.darwin_results = []
-        self.alignment_environments = pyopa.read_all_env_json(
-            os.path.dirname(__file__) + '/data/matrices/json/all_matrices.json')
 
-        self.log_pam1 = pyopa.read_env_json(os.path.dirname(__file__) + '/data/matrices/json/logPAM1.json')
+        defaults = pyopa.load_default_environments()
+        self.alignment_environments = defaults['environments']
+        self.log_pam1 = defaults['log_pam1']
         self.dms = pyopa.MutipleAlEnv(self.alignment_environments, self.log_pam1)
 
         """
@@ -66,7 +66,7 @@ class AlignTest(unittest.TestCase):
             write_env_file(logPAM1, "logPAM1")
         """
 
-        with open(os.path.dirname(__file__) + '/data/reference_test_results.dat') as f:
+        with open(os.path.join(pyopa.data_dir(), 'reference_test_results.dat')) as f:
             #skip header
             next(f)
             reader = csv.reader(f, delimiter='\t')

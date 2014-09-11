@@ -30,8 +30,18 @@ cdef extern from "EstimatePam.h":
         pass
 
     DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
-		double* pamDistances, long long* matrix_pointers, int DMSLen)
+        double* pamDistances, long long* matrix_pointers, int DMSLen)
     void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
             double* logPAM1, double* result)
     void freeDayMatrices(DayMatrix* DMS, int DMSLen)
     void CreateOrigDayMatrix(double* log_pam1, double pam, double* new_matrix)
+
+
+cdef extern from "DynProgr_sse_double.h":
+    ctypedef struct ProfileDouble:
+        pass
+
+    double align_double_local(ProfileDouble* profileDouble, const char *s2, int ls2, double gap_open,
+        double gap_ext, double threshold, int* max1, int* max2)
+    ProfileDouble* createProfileDoubleSSE(const char* s1, int ls1, double* matrix)
+    void free_profile_double_sse(ProfileDouble* profile)

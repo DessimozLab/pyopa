@@ -17,6 +17,9 @@
  #  (ML Distance and Variance, Mar/2006)
  #							*/
 
+double NorFre[MAXMUTDIM];
+int DelFrom[MAXSEQLEN+1];
+
 #define ABS(a)	((a)>=0?(a):-(a))
 
 #ifdef __i386
@@ -331,7 +334,7 @@ static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 			logMp[MAXMUTDIM * MAXMUTDIM], log2Mp[MAXMUTDIM * MAXMUTDIM],
 			t1[MAXMUTDIM * MAXMUTDIM], t2[MAXMUTDIM * MAXMUTDIM], t3[MAXMUTDIM
 					* MAXMUTDIM], t4[MAXMUTDIM * MAXMUTDIM];
-	double cj, FD1d, logL1, logL2, p, incr, x1;
+	double /*cj,*/FD1d, logL1, logL2, p, incr, x1;
 	int f21, i, iter, j, n, n2;
 	/*ALGEB s;
 
@@ -360,11 +363,11 @@ static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 	for (j = DMSLen; j > 3 && DMS[j - 1].FixedDel >= -1; j--)
 		;
 	{
-		double FD1, v1, v2;
+		double FD1/*, v1, v2*/;
 		FD1 = log(10.0) * (DMS[1].FixedDel - DMS[j - 1].FixedDel)
 				/ log(DMS[1].PamNumber / DMS[j - 1].PamNumber);
-		v1 = FD1 * (log10(DMS[j / 2].PamNumber) - log10(DMS[1].PamNumber));
-		v2 = DMS[j / 2].FixedDel - DMS[1].FixedDel;
+		/*v1 = FD1 * (log10(DMS[j / 2].PamNumber) - log10(DMS[1].PamNumber));*/
+		/*v2 = DMS[j / 2].FixedDel - DMS[1].FixedDel;*/
 		/*if (fabs(v1 - v2) > 1e-8 * fabs(v2))*/
 		/* be a bit more tolerant due to rounding of Day entries */
 		/*userror("deletion cost is not logarithmic on pam distance");*/
@@ -380,7 +383,7 @@ static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 	mmul(logPAM1, logMp, log2Mp, n);
 
 	for (iter = 0; 1; iter++) {
-		double tot1, tot2, tot3;
+		/*double tot1, tot2, tot3;*/
 		/*DBG( for( i=0; i < n;
 		 i++
 		 ) {
@@ -470,13 +473,13 @@ static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 	*PamNumber = DMS[dmsnumb].PamNumber;
 
 	/* check the neighbours to see if they are better */
-	for (j = (dmsnumb > 3 ? dmsnumb - 2 : 1); j < DMSLen && j <= dmsnumb + 2;
-			j++)
-		if (j != dmsnumb) {
-			cj = ComputeScore(j, cnt, DMS);
-			/*if (cj > *Sim)
-			 userror("maximum likelihood Distance not correct");*/
-		}
+	/*for (j = (dmsnumb > 3 ? dmsnumb - 2 : 1); j < DMSLen && j <= dmsnumb + 2;
+	 j++)
+	 if (j != dmsnumb) {
+	 cj = ComputeScore(j, cnt, DMS);
+	 if (cj > *Sim)
+	 userror("maximum likelihood Distance not correct");
+	 }*/
 }
 
 static void ComputeSmallVariance(Counters *cnt, int dmsnumb, DayMatrix *DMS,
@@ -639,13 +642,13 @@ void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
  and our own limiting computation	Gaston H. Gonnet (Sep 1990) */
 
 {
-	double AA[MAXMUTDIM][MAXMUTDIM], norm, RelMut[MAXMUTDIM], RowsA[MAXMUTDIM];
-	double a, b, lambda, M[MAXMUTDIM * MAXMUTDIM], MP[MAXMUTDIM * MAXMUTDIM],
+	/*double AA[MAXMUTDIM][MAXMUTDIM], norm, RelMut[MAXMUTDIM], RowsA[MAXMUTDIM];*/
+	double /*a, b, lambda,*/M[MAXMUTDIM * MAXMUTDIM], MP[MAXMUTDIM * MAXMUTDIM],
 			t1[MAXMUTDIM * MAXMUTDIM], t2[MAXMUTDIM * MAXMUTDIM];
-	double k, pam1, pam2, tot, v, maxs, t;
+	double /*k, */pam1, pam2, tot, /*v, */maxs, t;
 	/*ALGEB p, res, logpam;*/
 	int i, j, n;
-	double *dm;
+	/*double *dm;*/
 	int d1, d2;
 
 	d1 = d2 = 26;
@@ -804,10 +807,10 @@ void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
 
 	/* TODO fix this RoundDM macro? */
 	/*for (i = 0; i < d1; i++) {
-		for (j = 0; j < d1; j++) {
-			new_matrix[d2 * i + j] = RoundDM(new_matrix[d2 * i + j], v);
-		}
-	}*/
+	 for (j = 0; j < d1; j++) {
+	 new_matrix[d2 * i + j] = RoundDM(new_matrix[d2 * i + j], v);
+	 }
+	 }*/
 	/*if (n == 20)
 	 dm->type = naminstall("Peptide");
 	 else if (n == 64)

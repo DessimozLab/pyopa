@@ -279,10 +279,10 @@ cpdef double c_align_scalar_normalized_reference_local(np.ndarray[np.double_t,nd
                                                        gap_open, gap_ext, threshold)
 
 
-cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2,
-                                       int ls2, double gap_open, double gap_ext, double threshold, bint is_global):
+cpdef c_align_double_normalized_global(np.ndarray[np.double_t,ndim=2] matrix, const char *s1, int ls1, const char *s2,
+                                       int ls2, double gap_open, double gap_ext):
     """
-    A vectorized double precision alignment implementation.
+    A vectorized double precision GLOBAL alignment implementation.
     :param matrix: the 26x26 double matrix
     :param s1: the first string
     :param ls1: the length of the first string
@@ -290,30 +290,17 @@ cpdef c_align_double_normalized(np.ndarray[np.double_t,ndim=2] matrix, const cha
     :param ls2: the length of the second string
     :param gap_open: the gap opening cost
     :param gap_ext: the gap extension cost
-    :param threshold: the threshold used for the calculation (might be ignored)
-    :param is_global: for global/local alignment
     :return: the score and the max1, max2 ranges
     """
-    cdef int max1[1]
-    cdef int max2[1]
-
-    max1[0] = 0
-    max2[0] = 0
 
     ret = []
 
-    if not is_global:
-        res = pyopa.c_align_double_local(<double*> matrix.data, s1, ls1, s2, ls2,
-                                       gap_open, gap_ext, threshold, max1, max2)
-    else:
-        res = pyopa.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
+    res = pyopa.c_align_double_global(<double*> matrix.data, s1, ls1, s2, ls2,
                                        gap_open, gap_ext)
-        max1[0] = ls1
-        max2[0] = ls2
 
     ret.append(res)
-    ret.append(max1[0] - 1)
-    ret.append(max2[0] - 1)
+    ret.append(ls1 - 1)
+    ret.append(ls2 - 1)
 
     return ret
 
@@ -365,7 +352,7 @@ cpdef align_strings(s1, s2, env, is_global=False, provided_alignment=None):
 
     return [aligned_s1, aligned_s2]
 
-def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculate_ranges=True):
+def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculate_ranges=False):
     """
     A vectorized implementation of the double precision alignment algorithm.
     :param s1:
@@ -377,33 +364,30 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
     :return: an array of [score, max1, max2] if calculate ranges is false and  [score, max1, max2, min1, min2] if it's
     true
     """
-    s1 = s1.s_norm
-    s2 = s2.s_norm
+    profile1 = AlignmentProfile()
+    profile1.create_profile_double(s1, env.float64_matrix)
 
-    if not stop_at_threshold:
-        res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
-                                     env.gap_open, env.gap_ext, sys.float_info.max, is_global)
-    else:
-        res = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
-                             env.gap_open, env.gap_ext, env.threshold, is_global)
-
-    if calculate_ranges:
-        if is_global:
+    if is_global:
+        res = c_align_double_normalized_global(env.float64_matrix, s1.s_norm, len(s1), s2, len(s2),
+                             env.gap_open, env.gap_ext)
+        if calculate_ranges :
             res.extend([0, 0])
-        else:
-            s1 = s1[res[1]::-1]
-            s2 = s2[res[2]::-1]
+    else:
+        res = profile1.align_double(s2, env, stop_at_threshold)
 
-            #TODO do not allow stop at threshold
-            if not stop_at_threshold:
-                reversed = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
-                                             env.gap_open, env.gap_ext, sys.float_info.max, is_global)
-            else:
-                reversed = c_align_double_normalized(env.float64_matrix, s1, len(s1), s2, len(s2),
-                                     env.gap_open, env.gap_ext, env.threshold, is_global)
-            res.extend([res[1] - reversed[1], res[2] - reversed[2]])
+        if calculate_ranges:
+                s1r = Sequence(s1.s_norm[res[1]::-1], True)
+                s2r = Sequence(s2.s_norm[res[2]::-1], True)
+
+                profile1r = AlignmentProfile()
+                profile1r.create_profile_double(s1r, env.float64_matrix)
+
+                reversed = profile1r.align_double(s2r, env, stop_at_threshold)
+
+                res.extend([res[1] - reversed[1], res[2] - reversed[2]])
 
     return res
+
 
 def align_scalar_reference_local(s1, s2, env):
     """
@@ -514,13 +498,14 @@ cdef class AlignmentProfile:
     """
     This class is used to facilitate multiple alignment by using the same query and matrix with the C core SSE byte and
     short alignments. From the given query and matrix we can generate a so-called "profile" in C, which makes it
-    possible to efficiently align multiple consecutive S strings to the same query. We can either create a short or a
+    possible to efficiently align multiple consecutive S sequences to the same query. We can either create a short or a
     byte profile respectively for the short and byte C core alignment.
     """
 
     #to store and free the profile generated from C
     cdef pyopa.ProfileByte* _c_profileByte
     cdef pyopa.ProfileShort* _c_profileShort
+    cdef pyopa.ProfileDouble* _c_profileDouble
 
 
     def __cinit__(self):
@@ -535,6 +520,9 @@ cdef class AlignmentProfile:
         if self._c_profileShort is not NULL:
             pyopa.c_free_profile_short_sse_local(self._c_profileShort)
 
+        if self._c_profileDouble is not NULL:
+            pyopa.free_profile_double_sse(self._c_profileDouble)
+
 
     def create_profiles(self, query, env):
         """
@@ -544,14 +532,15 @@ cdef class AlignmentProfile:
         """
         self.create_profile_byte(query, env.int8_matrix)
         self.create_profile_short(query, env.int16_matrix)
+        self.create_profile_double(query, env.float64_matrix)
 
 
     cpdef create_profile_byte(self, query, np.ndarray[np.int8_t,ndim=2] matrix):
         """
-        Creates a byte profile from the given query and matrix. The query string must be normalized but the matrix
+        Creates a byte profile from the given query and matrix. The matrix
         must be scaled to the byte version.
 
-        :param query: the query string which we want to use for the profile
+        :param query: the query sequence which we want to use for the profile
         :param matrix: the matrix which we want to use for the profile (must be scaled to bytes)
         """
 
@@ -568,10 +557,10 @@ cdef class AlignmentProfile:
 
     cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
         """
-        Creates a short profile from the given query and matrix. The query string must be normalized but the matrix
+        Creates a short profile from the given query and matrix. The matrix
         must be scaled to the short version.
 
-        :param query: the query string which we want to use for the profile
+        :param query: the query sequence which we want to use for the profile
         :param matrix: the matrix which we want to use for the profile (must be scaled to shorts)
         """
 
@@ -587,12 +576,31 @@ cdef class AlignmentProfile:
                                                                              <signed short*> matrix.data)
 
 
+    cpdef create_profile_double(self, query, np.ndarray[np.double_t, ndim=2] matrix):
+        """
+        Creates a double profile from the given query and matrix.
+
+        :param query: the query sequence which we want to use for the profile
+        :param matrix: the matrix which we want to use for the profile (must be scaled to shorts)
+        """
+
+        if matrix.shape[0] != 26 or matrix.shape[1] != 26:
+            raise ValueError("Invalid matrix shape, the matrix must be 26x26.")
+
+        query = query.s_norm
+
+        if self._c_profileDouble is not NULL:
+            pyopa.free_profile_double_sse(self._c_profileDouble)
+
+        self._c_profileDouble = pyopa.createProfileDoubleSSE(query, len(query), <double*> matrix.data)
+
+
     cpdef align_byte(self, s2, env):
         """
-        Aligns the string s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using byte
+        Aligns the sequence s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using byte
         SSE alignment.
 
-        :param s2: the string which we would like to align to the profile, this input string must be normalized
+        :param s2: the sequence which we would like to align to the profile
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
         :return: the result of the byte alignment
         """
@@ -610,8 +618,8 @@ cdef class AlignmentProfile:
 
     cpdef align_short(self, s2, env):
         """
-        Aligns the string s2 with the gap costs defined in the given AlignmentEnvironment to the profile by using short
-        SSE alignment.
+        Aligns the sequence s2 with the gap costs defined in the given AlignmentEnvironment to the profile
+        by using short SSE alignment.
 
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
         :return: the result of the short alignment
@@ -627,6 +635,37 @@ cdef class AlignmentProfile:
 
         return scale_back(ret, env.short_factor())
 
+
+    cpdef align_double(self, s2, env, stop_at_threshold=False):
+        """
+        Aligns the sequence s2 with the gap costs defined in the given AlignmentEnvironment
+        to the profile by using double SSE alignment.
+
+        :param s2: the sequence which we would like to align to the profile
+        :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
+        :return: the result of the double alignment
+        """
+        cdef int max1[1]
+        cdef int max2[1]
+
+        max1[0] = 0
+        max2[0] = 0
+
+        ret = []
+        s2 = s2.s_norm
+
+        if not stop_at_threshold:
+            res = pyopa.align_double_local(self._c_profileDouble, s2, len(s2),
+                                       env.gap_open, env.gap_ext, sys.float_info.max, max1, max2)
+        else:
+            res = pyopa.align_double_local(self._c_profileDouble, s2, len(s2),
+                                       env.gap_open, env.gap_ext, env.threshold, max1, max2)
+
+        ret.append(res)
+        ret.append(max1[0] - 1)
+        ret.append(max2[0] - 1)
+
+        return ret
 
 
 class AlignmentEnvironment:

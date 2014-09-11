@@ -46,8 +46,18 @@ class UtilTest(unittest.TestCase):
         s_short1 = pyopa.Sequence('AAA')
         s_short2 = pyopa.Sequence('BBB')
 
+        s_short3 = pyopa.Sequence('A')
+        s_short4 = pyopa.Sequence('B')
+        s_short5 = pyopa.Sequence('')
+
         self.assertEquals(pyopa.align_double(s_short1, s_short1, env_a)[0], 3 * simple_score)
         self.assertEquals(pyopa.align_double(s_short2, s_short2, env_b)[0], 3 * simple_score)
+        self.assertEquals(pyopa.align_double(s_short3, s_short3, env_a)[0], 1 * simple_score)
+        self.assertEquals(pyopa.align_double(s_short4, s_short4, env_b)[0], 1 * simple_score)
+        self.assertEquals(pyopa.align_double(s_short3, s_short5, env_a)[0], 0.0)
+        self.assertEquals(pyopa.align_double(s_short5, s_short5, env_a)[0], 0.0)
+        self.assertEquals(pyopa.align_double(s_short3, s_short1, env_a)[0], 1 * simple_score)
+        self.assertEquals(pyopa.align_double(s_short1, s_short3, env_a)[0], 1 * simple_score)
 
         self.assertRaises(ValueError, pyopa.create_environment, -2, -1, 20, simple_scores, 'AB')
         self.assertRaises(ValueError, pyopa.create_environment, -2, -1, 20, simple_scores, '')

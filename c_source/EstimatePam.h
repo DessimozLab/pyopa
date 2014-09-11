@@ -31,7 +31,7 @@ typedef struct DayMatrix {
 	double* Simi;
 } DayMatrix;
 
-static double NorFre[MAXMUTDIM];
+extern double NorFre[MAXMUTDIM];
 
 DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 		double* pamDistances, long long* matrix_pointers, int DMSLen);

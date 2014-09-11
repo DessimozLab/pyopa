@@ -10,7 +10,7 @@ package_name = 'pyopa'
 
 c_dir = 'c_source/'
 c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c',
-             'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c']
+             'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c', 'DynProgr_sse_double.c']
 
 data_dir = os.path.join(sys.prefix, package_name + '_test')
 

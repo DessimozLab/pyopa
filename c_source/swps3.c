@@ -35,18 +35,15 @@
 #include "DynProgr_sse_byte.h"
 #include "DynProgr_sse_short.h"
 #endif
-#if defined(__ALTIVEC__)
-#include "DynProgr_altivec.h"
-#endif
-#if defined(__PS3)
-#include "DynProgr_PPU.h"
-#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
+#include <string.h>
+
 #include "Python_extension.h"
 #include "EstimatePam.h"
-#include <string.h>
+#include "DynProgr_sse_double.h"
 
 void normalizeSequence(char* seq, int seqLen) {
 	int i;
@@ -116,17 +113,17 @@ void readShortMatrix(SMatrix matrix, const char* fileLoc, Options* options) {
 	}
 }
 
-int main(int argc, char * argv[]) {
+int main() {
 
 	int16_t sMatrix[MATRIX_DIM * MATRIX_DIM];
 	double dMatrix[MATRIX_DIM * MATRIX_DIM];
 	/* 1267 instead of 1266 because in darwin indexing starts from 1 and the code is migrated like that */
-	long long* doubleMatrices[1267];
+	long long doubleMatrices[1267];
 	double gapOpenCosts[1267];
 	double gapExtCosts[1267];
 	double pamDistances[1267];
 	double logPAM1Matrix[MATRIX_DIM * MATRIX_DIM];
-	int i, j;
+	int i;
 
 	Options tmp;
 	readDoubleMatrix(logPAM1Matrix,
@@ -139,7 +136,7 @@ int main(int argc, char * argv[]) {
 		sprintf(name,
 				"/home/machine/repos/students/2014_Ferenc_Galko_SWPS3_PY/swps3_python_extended/test/data/matrices/C_compatible/%d.dat",
 				i);
-		readDoubleMatrix(doubleMatrices[i], name, &tmp);
+		readDoubleMatrix((double*) doubleMatrices[i], name, &tmp);
 		gapOpenCosts[i] = tmp.gapOpen;
 		gapExtCosts[i] = tmp.gapExt;
 		/* threshold contains the pamDistance for now */
@@ -167,8 +164,10 @@ int main(int argc, char * argv[]) {
 	 "GANRAKHVKYWRTEANPKTCKWWVASPKSNLLFQTVHIKSEGTYLARNSVSATRDTKKVQDLLSRLQTSEYGLRHIFTDARRNETRTGIEMNALLVLPEGEWGTMVALARTGFFLLLAFSMGTMSKKFEGNHHWTWVYPFFMELMAQLHIFNGHVAWVLFNLPGEAIVSLRTGYLQRGREKTFVDG";
 	 */
 	char o1[MAXSEQLEN], o2[MAXSEQLEN];
-	char query[] = "AAA";
-	char db[] = "AAA";
+	char query[] =
+			"PISRIDNNKILGNTGIISVTIGVIIFKDLHAKVLLGLHGFWKFIYYYDGLDVVLTVLRDLKGTTNTSDICKHKMSIAEGQFDSAAIQGCEKWILRIEIVTDLILTRSAVLCEDNSFDSRMPGFLLIAIIWANSYEIGCSYSQAASTLIARGYASFDAAVRSRIIQPTIKMEGNNDAQEPLKQNVVWQSQSFCVCFGRLPGTAESYSTCDFLLTGTELPHTFQTIRCDIFGTDKPFTNFDGAGRFAYPNFNPFGGALRNLSIGEVNHITIDHASKIEPSVKGNLITYYILEKKGFFPDGCLLSLLVDPLFLLSSPSEIKTVNLYSAKTRCTSSNAEMPIVVSIGKEGANEYTLIHLSFYVPAWRAGEYRLCSALEFTQFENSYWAHYIVTDIAADLAETQANASNGDRQEKQVGTRLMVLKAKGLTEPTASQASEPRENFFPEGKLRLSQSAAVAVGMLITVVDMTAKYGCYGETNFVVRAQLSTLLQGFPGILKIHVSVAEKCIVGIICATLKKGYLHQTAVETLPRPYRYKANARANKYQELCRLLRKATPDGKLQLFIPLAVVIWFQPTVPHEARRTNLCFVKVKLLPRVERDLCDSVQIYEWFYTQPWSIRTARPGVDPSGPEASEQWKWLDFPDFCIVLACKVQMIVHIHYKDWPIICHPFDGRKQVVDDKTMYEYQVACLLVEGLDRPERKQGQFKWRFVQYGKQNPLLPQPALVGGLGIASRFEPPTHIQADQDLTPSDTIMKTSAEAPRGDVIQYVGKEGLPTDNTWIVVQVFFDTPGQWVGAARAMPTKYLS";
+	char db[] =
+			"PIERIENNKILANTGVISVTIGVIIYQDLHAKVLRGLHGFWKFIYFLDGLDTVMEKGTTNTSDYCKHKMAIAEGQFGSAAIQGCEKWILRMEIVWDLILTRPAVLCLNNSFDSRMPGFLLITIIWANSYEISFSYSQTASTLTARGYATFDAATRSRIIQPTIKMEGNNEAQKPLNQQNVVWQSQTFCVCFGRLPGTSESLSTCDFLLTGEEVPNTLQTIRCDLFGTDTPFSNFDGAGRFATPNFNPFGGALRNASIGSVDHITIEHASEIEPSVQGNIVTYYIKEKKGFFPTACLLSLLTDPLFLFTSPSEYKVVNMWSAKTKCTSSNAEVPVVVAFGQDGADDYTIIHLSKDVPAWRAGKYRLCSSLEFTQFENSWSHYIVTDIAANRAETQANASNGDRQEKEKGTRLMVLKEEGLSEPTASQASEPRENFFPEGKLRGSQTAEVAVGMLITVVDMTAKYGCYGETEFVARAQWPRLLQGFPGILKIGVSVAEKCIVGIICAALKKMILHQTNVERLPLPGRYKANARANKYQELCRLLRKSTPEGKLQLFIPPAVVIWKNPTLPHEAVRTNLCFVKVKLLPRVERDLCDKLIMIYEWFYAQPWSIRTGRPLSGPEASEQYKWLDFPDFAVVIACKVEFVVHIHYQDWPINCHPFDGRKQVVDDKTMYEYMVACMLVPGLLHPQRKKGQFKWRFIQYGKQNPLLPQPSLTGGLGIASRLEPPTHIQADQDLTPPDTIMRTSAEAPRGDVIQHVGKQVFFDVPGQWVGAGRAMPTKYLS";
 	int ql = strlen(query);
 	int dbl = strlen(db);
 
@@ -182,7 +181,10 @@ int main(int argc, char * argv[]) {
 			options_short.gapOpen, options_short.gapExt,
 			options_short.threshold);
 	int max1, max2;
-	double short_double = c_align_double_local(dMatrix, query, ql, db, dbl,
+
+	ProfileDouble* profileDouble = createProfileDoubleSSE(query, ql, dMatrix);
+
+	double short_double = align_double_local(profileDouble, db, dbl,
 			options_double.gapOpen, options_double.gapExt,
 			options_double.threshold, &max1, &max2);
 	double double_global = c_align_double_global(dMatrix, query, ql, db, dbl,
@@ -190,12 +192,6 @@ int main(int argc, char * argv[]) {
 	double scalar_double = c_align_scalar_reference_local(dMatrix, query, ql,
 			db, dbl, options_double.gapOpen, options_double.gapExt,
 			options_double.threshold);
-	/*  */
-	int retLen = c_align_strings(dMatrix, query, ql, db, dbl, scalar_double, o1,
-			o2, 0.5e-4, options_double.gapOpen, options_double.gapExt);
-
-	denormalizeSequence(o1, retLen);
-	denormalizeSequence(o2, retLen);
 
 	score_short /= shortFactor;
 
@@ -203,6 +199,14 @@ int main(int argc, char * argv[]) {
 	printf("DOUBLE score: %.15f\n", short_double);
 	printf("SCALAR score: %.15f\n", scalar_double);
 	printf("double_global: %.15f\n", double_global);
+
+	/*  */
+	int retLen = c_align_strings(dMatrix, query, ql, db, dbl, scalar_double, o1,
+			o2, 0.5e-4, options_double.gapOpen, options_double.gapExt);
+
+	denormalizeSequence(o1, retLen);
+	denormalizeSequence(o2, retLen);
+
 	printf("Concrete alignment (%d):\nSeq1: %s\nSeq2: %s\n", retLen, o1, o2);
 
 	normalizeSequence(o1, retLen);
@@ -223,16 +227,16 @@ int main(int argc, char * argv[]) {
 	CreateOrigDayMatrix(logPAM1Matrix, 250, generated);
 
 	freeDayMatrices(DMS, 1266);
+	free_profile_double_sse(profileDouble);
 	swps3_freeProfileShortSSE(profile);
 
 	for (i = 1; i < 1267; ++i) {
-		free(doubleMatrices[i]);
+		free((double*) doubleMatrices[i]);
 	}
 
-	printf("Double pointer size:%d\n", sizeof(double*));
-	printf("Char pointer size:%d\n", sizeof(char*));
-	printf("Int size:%d\n", sizeof(int));
-
+	printf("Double pointer size:%lu\n", sizeof(double*));
+	printf("Char pointer size:%lu\n", sizeof(char*));
+	printf("Int size:%lu\n", sizeof(int));
 
 	return 0;
 }

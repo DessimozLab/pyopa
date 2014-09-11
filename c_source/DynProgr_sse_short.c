@@ -224,10 +224,10 @@ EXPORT double swps3_alignmentShortSSE_lin(ProfileShort * query, const char * db,
 	return (double) (uint16_t)(MaxScore - (uint16_t) 0x8000);
 }
 
-double swps3_alignmentShort2SSE(ProfileShort * query, const char * db,
+/*double swps3_alignmentShort2SSE(ProfileShort * query, const char * db,
 		int dbLen, Options * options) {
 	return 0;
-}
+}*/
 
 EXPORT double swps3_alignmentShortSSE(ProfileShort * query, const char * db,
 		int dbLen, Options * options) {

@@ -144,7 +144,10 @@ class AlignTest(unittest.TestCase):
                                    msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'
                                        % (scalar_result_reference, r.score_double, completed + 1))
             self.assertGreaterEqual(short_result, r.score_double,
-                                    msg="Short score must be greater or equal than double score.")
+                                    msg="Short score (%f) must be greater or equal"
+                                        " than double score (%f), test id: %d'."
+                                        % (short_result, r.score_double, completed + 1)
+            )
             self.assertGreaterEqual(byte_result, r.score_double,
                                     msg="Byte score must be greater or equal than double score.")
             self.assertAlmostEqual(double_result, r.score_double,

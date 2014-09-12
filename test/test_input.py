@@ -85,6 +85,7 @@ class UtilTest(unittest.TestCase):
 
         #empty environment should use zero matrix
         self.assertAlmostEqual(pyopa.align_double(self.s1, self.s2, pyopa.AlignmentEnvironment())[0], 0.0)
+        pyopa.align_double(self.s1, self.s2, self.env, True, True, True)
 
     def test_align_strings(self):
         threading.stack_size(100000000)

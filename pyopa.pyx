@@ -368,7 +368,7 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
     profile1.create_profile_double(s1, env.float64_matrix)
 
     if is_global:
-        res = c_align_double_normalized_global(env.float64_matrix, s1.s_norm, len(s1), s2, len(s2),
+        res = c_align_double_normalized_global(env.float64_matrix, s1.s_norm, len(s1), s2.s_norm, len(s2),
                              env.gap_open, env.gap_ext)
         if calculate_ranges :
             res.extend([0, 0])

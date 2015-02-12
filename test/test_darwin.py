@@ -99,7 +99,7 @@ class AlignTest(unittest.TestCase):
                 '''
 
     def test_align(self):
-        threading.stack_size(100000000)
+        threading.stack_size(67104768)
         t = threading.Thread(None, self._align_t, 'Aligning Thread')
         t.start()
         t.join()

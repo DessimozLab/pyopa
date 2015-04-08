@@ -426,7 +426,7 @@ cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
     return env
 
 
-def generate_all_env(log_pam1_env, env_num, starting_pam=0.049449734348559203348, threshold=85.0):
+def generate_all_env(log_pam1_env, env_num=1266, starting_pam=0.049449734348559203348, threshold=85.0):
     """
     Generates a list of environments starting from the given pam distance, by using the formula of
     starting_pam = min((1 + 1/45.0) * starting_pam, starting_pam + 1) for further environments.

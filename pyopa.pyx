@@ -383,6 +383,7 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
                 profile1r.create_profile_double(s1r, env.float64_matrix)
 
                 reversed = profile1r.align_double(s2r, env, stop_at_threshold)
+                assert( abs(res[0]-reversed[0]) <= abs(res[0])*1e-10 )
 
                 res.extend([res[1] - reversed[1], res[2] - reversed[2]])
 

@@ -133,12 +133,12 @@ class AlignTest(unittest.TestCase):
                 self.assertEqual(aligned_strings[0], r.als1)
                 self.assertEqual(aligned_strings[1], r.als2)
                 self.assertAlmostEqual(ep_result[0], r.ep_sim,
-                                       places=self.precision,
-                                       msg='Incorrect EstimatePam similarity score %.8f.'
-                                           ' The correct result is: % 8f, test id: %d' %
+                                       delta=r.ep_sim *10**(1-self.precision),
+                                       msg='Incorrect EstimatePam similarity score: %.10f != %.10f.'
+                                           'Test id: %d' %
                                            (ep_result[0], r.ep_sim, completed + 1))
-                self.assertAlmostEqual(ep_result[1], r.ep_pamn, places=self.precision)
-                self.assertAlmostEqual(ep_result[2], r.ep_var, places=self.precision)
+                self.assertAlmostEqual(ep_result[1], r.ep_pamn, delta=r.ep_pamn*10**(1-self.precision))
+                self.assertAlmostEqual(ep_result[2], r.ep_var, delta=r.ep_var*10**(1-self.precision))
 
             self.assertAlmostEqual(scalar_result_reference, r.score_double, places=self.precision,
                                    msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'

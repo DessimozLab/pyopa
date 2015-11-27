@@ -14,12 +14,12 @@ c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c'
 
 data_dir = os.path.join(sys.prefix, package_name + '_test')
 
-
+print(sys.prefix)
 setup(
     ext_modules = cythonize([
 	    Extension(
 		package_name,
-		sources=[package_name+'.pyx'] + map(lambda c: os.path.join(c_dir, c), c_sources),
+		sources=[package_name+'.pyx'] + list(map(lambda c: os.path.join(c_dir, c), c_sources)),
 		#libraries=["swps3"],
 		#extra_link_args=["-L../"],
         #extra_compile_args = ['-DPY_DEBUG'],

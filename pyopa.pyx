@@ -57,7 +57,7 @@ def run_tests():
     :return:
     """
     cmd = 'python -m unittest discover ' + test_dir()
-    print(cmd)
+    print cmd
     call(cmd, shell=True)
 
 
@@ -80,9 +80,9 @@ def normalize_sequence(s):
         if c != '_':
             ret += chr(ord(c) - ord('A'))
         else:
-            #print("The '_' character has not been normalized!")
+            #print "The '_' character has not been normalized!"
             ret += c
-    
+
     return ret
 
 
@@ -364,7 +364,6 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
     :return: an array of [score, max1, max2] if calculate ranges is false and  [score, max1, max2, min1, min2] if it's
     true
     """
-
     profile1 = AlignmentProfile()
     profile1.create_profile_double(s1, env.float64_matrix)
 
@@ -375,6 +374,7 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
             res.extend([0, 0])
     else:
         res = profile1.align_double(s2, env, stop_at_threshold)
+
         if calculate_ranges:
                 s1r = Sequence(s1.s_norm[res[1]::-1], True)
                 s2r = Sequence(s2.s_norm[res[2]::-1], True)
@@ -447,14 +447,14 @@ def generate_all_env(log_pam1_env, env_num=1266, starting_pam=0.0494497343485592
 
 class Sequence:
     def __init__(self, s, is_normalized=False):
-
+    
         if isinstance(s, basestring):
             if not is_normalized:
                 self.s_norm = normalize_sequence(s)
             else:
                 self.s_norm = s
         elif isinstance(s, list):
-            self.s_norm = ''.join(map(chr, s))
+            self.s_norm = ''.join(list(map(chr, s)))
             if not is_normalized:
                 self.s_norm = normalize_sequence(self.s_norm)
         else:
@@ -548,12 +548,11 @@ cdef class AlignmentProfile:
             raise ValueError("Invalid matrix shape, the matrix must be 26x26.")
 
         query = query.s_norm
-        query_bytes = query.encode('utf-8')
 
         if self._c_profileByte is not NULL:
             pyopa.c_free_profile_byte_sse_local(self._c_profileByte)
 
-        self._c_profileByte = pyopa.c_create_profile_byte_sse_local(query_bytes, len(query), <signed char*> matrix.data)
+        self._c_profileByte = pyopa.c_create_profile_byte_sse_local(query.encode('utf-8'), len(query), <signed char*> matrix.data)
 
 
     cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
@@ -569,17 +568,15 @@ cdef class AlignmentProfile:
             raise ValueError("Invalid matrix shape, the matrix must be 26x26.")
 
         query = query.s_norm
-        query_bytes = query.encode('utf-8')
-        
+
         if self._c_profileShort is not NULL:
             pyopa.c_free_profile_short_sse_local(self._c_profileShort)
 
-        self._c_profileShort = pyopa.c_create_profile_short_sse_local(query_bytes, len(query),
+        self._c_profileShort = pyopa.c_create_profile_short_sse_local(query.encode('utf-8'), len(query),
                                                                              <signed short*> matrix.data)
 
 
     cpdef create_profile_double(self, query, np.ndarray[np.double_t, ndim=2] matrix):
-
         """
         Creates a double profile from the given query and matrix.
 
@@ -594,8 +591,8 @@ cdef class AlignmentProfile:
 
         if self._c_profileDouble is not NULL:
             pyopa.free_profile_double_sse(self._c_profileDouble)
-        query_bytes = query.encode('utf-8')
-        self._c_profileDouble = pyopa.createProfileDoubleSSE(query_bytes, len(query), <double*> matrix.data)
+
+        self._c_profileDouble = pyopa.createProfileDoubleSSE(query.encode('utf-8'), len(query), <double*> matrix.data)
 
 
     cpdef align_byte(self, s2, env):
@@ -609,9 +606,8 @@ cdef class AlignmentProfile:
         """
 
         s2 = s2.s_norm
-        s2_bytes = s2.encode('utf-8')
 
-        ret = pyopa.c_align_profile_byte_sse_local(self._c_profileByte, s2_bytes, len(s2),
+        ret = pyopa.c_align_profile_byte_sse_local(self._c_profileByte, s2.encode('utf-8'), len(s2),
                                                       env.int8_gap_open, env.int8_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -630,10 +626,9 @@ cdef class AlignmentProfile:
         """
 
         s2 = s2.s_norm
-        s2_bytes = s2.encode('utf-8')
-        
+
         ret = pyopa.c_align_profile_short_sse_local(self._c_profileShort,
-                                                       s2_bytes, len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
+                                                       s2.encode('utf-8'), len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
             return ret
@@ -658,14 +653,14 @@ cdef class AlignmentProfile:
 
         ret = []
         s2 = s2.s_norm
-        s2_bytes = s2.encode('utf-8')
-        
-        if not stop_at_threshold:     
-            res = pyopa.align_double_local(self._c_profileDouble, s2_bytes, len(s2),
+
+        if not stop_at_threshold:
+            res = pyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
                                        env.gap_open, env.gap_ext, sys.float_info.max, max1, max2)
         else:
-            res = pyopa.align_double_local(self._c_profileDouble, s2_bytes, len(s2),
+            res = pyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
                                        env.gap_open, env.gap_ext, env.threshold, max1, max2)
+
         ret.append(res)
         ret.append(max1[0] - 1)
         ret.append(max2[0] - 1)

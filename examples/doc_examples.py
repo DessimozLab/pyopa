@@ -49,8 +49,7 @@ gen_env_list = pyopa.generate_all_env(log_pam1_env, 1000)
 s1 = pyopa.Sequence('AATCGGA')
 s2 = pyopa.Sequence('AAAA')
 s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
-print(s1.s_norm)
-print(s2.s_norm)
+
 #not optimal, multiple hidden profile generations in the background
 print(pyopa.align_short(s1, s2, generated_env))
 print(pyopa.align_short(s1, s3, generated_env))
@@ -59,7 +58,6 @@ print(pyopa.align_byte(s1, s3, generated_env))
 
 #one profile generation
 profile = pyopa.AlignmentProfile()
-print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 profile.create_profiles(s1, generated_env)
 
 #the following code produces the exact same result
@@ -81,25 +79,18 @@ generated_env.create_scaled_matrices()
 
 #and then create the profile
 profile.create_profiles(s1, generated_env)
-print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 #now we can do alignments with the new profile:
 print(profile.align_short(s3, generated_env))
 #---------------------------------------------------------------------------------------------------
 #always a local alignment
-print('got here')
-print(s1.s_norm)
-print(s2.s_norm)
 print(pyopa.align_scalar_reference_local(s1, s2, generated_env))
 #---------------------------------------------------------------------------------------------------
-print('HERE')
 s1_norm = pyopa.normalize_sequence('AATCGGA')
 
 #if the sequence comes from a normalized source
 s1 = pyopa.Sequence(s1_norm, True)
 s2 = pyopa.Sequence('AAAA')
 
-print(s1)
-print(s2)
 #construct from a byte array, prints ACCA
 print(pyopa.Sequence([0, 2, 2, 0], True))
 

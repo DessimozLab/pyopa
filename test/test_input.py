@@ -3,7 +3,7 @@ import threading
 import unittest
 import os
 import array
-
+import sys
 
 class UtilTest(unittest.TestCase):
     def setUp(self):
@@ -17,10 +17,12 @@ class UtilTest(unittest.TestCase):
 
     def test_norm_seq(self):
         s1 = pyopa.normalize_sequence('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-        print(s1)
-        ref = bytes(range(26)).decode('utf-8')
-        print(ref)
-        self.assertEqual(s1, ref)
+        if (sys.version_info < (3,)):
+            ref = bytearray(range(26))
+            self.assertEqual(s1, ref)
+        else:
+            ref = bytes(range(26)).decode('utf-8')
+            self.assertEqual(s1, ref)
 
         #do not normalize '_' character
         s1 = pyopa.normalize_sequence('__________________________')
@@ -127,9 +129,13 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(s.convert_readable(), s_string)
 
         #wrong type exception
-        s_bytes = s_string.encode()
-        self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
-
+        if (sys.version_info < (3,)): 
+            s_bytes = array.array('B', s_string)
+            self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
+        else:
+            s_bytes = s_string.encode('utf-8')
+            self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
+            
         #normalized and non-normalized byte list constructor
         self.assertEqual('ACA_', pyopa.Sequence([0, 2, 0, ord('_')], True))
         self.assertEqual('ACA_', pyopa.Sequence([65, 67, 65, ord('_')], False))

@@ -5,7 +5,7 @@ import pyopa
 import sys
 import json
 import threading
-
+import numpy as np
 
 class DarwinResult:
     def __init__(self):
@@ -49,7 +49,7 @@ class AlignTest(unittest.TestCase):
         with open(os.path.join(pyopa.data_dir(), 'testseqs.txt')) as f:
             self.sequences = f.readlines()
 
-        self.sequences = map(lambda s: pyopa.Sequence(s.strip()), self.sequences)
+        self.sequences = list(map(lambda s: pyopa.Sequence(s.strip()), self.sequences))
         self.darwin_results = []
 
         defaults = pyopa.load_default_environments()
@@ -105,10 +105,10 @@ class AlignTest(unittest.TestCase):
         t.join()
 
     def _align_t(self):
-        print 'Running alignment tests...'
+        print('Running alignment tests...')
         completed = 0
         max_alignments = len(self.darwin_results)
-        progress_step = max_alignments / 100
+        progress_step = int(np.ceil(max_alignments / 100))
 
         for r in self.darwin_results:
             s1 = self.sequences[r.s1_id - 1]
@@ -167,9 +167,9 @@ class AlignTest(unittest.TestCase):
                 self.assertGreaterEqual(short_result, sys.float_info.max)
             else:
                 if short_result < r.score_short and (r.score_short - short_result) > 0.01:
-                    #print "Warning: python short score(%f) is less than darwin's, but still bigger" \
+                    #print("Warning: python short score(%f) is less than darwin's, but still bigger" \
                     #      " than the double score(%f) at id: %d!" \
-                    #      % (short_result, r.score_double, completed + 1)
+                    #      % (short_result, r.score_double, completed + 1))
                     pass
                 else:
                     self.assertAlmostEqual(short_result, r.score_short,
@@ -178,11 +178,11 @@ class AlignTest(unittest.TestCase):
                                                (short_result, r.score_short, completed + 1))
 
             completed += 1
-            if completed % progress_step == 0:
-                print '%d%% completed' % (completed / progress_step)
+            if (completed % progress_step == 0):
+                print('%d%% completed' % (completed / progress_step))
 
     def test_generated_envs(self):
-        print 'Testing generated matrices'
+        print('Testing generated matrices')
         generated_envs = pyopa.generate_all_env(self.log_pam1, 1266)
         for i in range(1266):
             curr_ref = self.alignment_environments[i]

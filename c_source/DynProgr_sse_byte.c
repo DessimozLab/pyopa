@@ -37,9 +37,20 @@
 /**
  *  Creates a profile with unsigned 8 bit integers
  */
+
+/*
+void print128_num(__m128i * var) {
+    uint32_t *val = (uint32_t*) &var;
+    printf("Numerical: %d %d %d %d \n", 
+           val[0], val[1], val[2], val[3]);
+}
+*/
+
+//TODO: remove query (empty string) - not used anywhere in the swps3_createProfileByteSSE except for debug
 EXPORT ProfileByte * swps3_createProfileByteSSE(const char * query,
 		int queryLen, BMatrix matrix) {
 	int segLen = (queryLen + 15) / 16;
+//	printf("Query Length: %d\n", queryLen);
 	int i, j, k;
 	int bias = 0;
 	uint8_t * pprofile;
@@ -48,7 +59,14 @@ EXPORT ProfileByte * swps3_createProfileByteSSE(const char * query,
 					+ 64 + 2 * getPageSize());
 
 	profile->loadOpt = (__m128i *) ((size_t)(profile->data + 15) & ~(0xf));
+//	printf("%s", "Loadopt:\n");
+//	print128_num(profile->loadOpt);
+
 	profile->storeOpt = profile->loadOpt + segLen;
+//      	printf("%s", "Storeopt:\n");
+//        print128_num(profile->storeOpt);
+
+
 	profile->rD = profile->storeOpt + segLen;
 	profile->profile = (__m128i *) PAGE_ALIGN(profile->rD + segLen);
 

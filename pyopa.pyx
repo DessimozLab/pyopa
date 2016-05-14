@@ -338,8 +338,8 @@ cpdef align_strings(s1, s2, env, is_global=False, provided_alignment=None):
 
     cdef np.ndarray[np.double_t,ndim=2] matrix = env.float64_matrix
 
-    max_len = pyopa.c_align_strings(<double*> matrix.data, s1, len(s1),
-                                 s2, len(s2), provided_alignment[0], o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
+    max_len = pyopa.c_align_strings(<double*> matrix.data, s1.encode('utf-8'), len(s1),
+                                 s2.encode('utf-8'), len(s2), provided_alignment[0], o1, o2, 0.5e-4, env.gap_open, env.gap_ext)
 
     o1_p = [0] * max_len
     o2_p = [0] * max_len
@@ -368,7 +368,7 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
     profile1.create_profile_double(s1, env.float64_matrix)
 
     if is_global:
-        res = c_align_double_normalized_global(env.float64_matrix, s1.s_norm, len(s1), s2.s_norm, len(s2),
+        res = c_align_double_normalized_global(env.float64_matrix, s1.s_norm.encode('utf-8'), len(s1), s2.s_norm.encode('utf-8'), len(s2),
                              env.gap_open, env.gap_ext)
         if calculate_ranges :
             res.extend([0, 0])
@@ -399,7 +399,7 @@ def align_scalar_reference_local(s1, s2, env):
     :param env: the AlignmentEnvironment to be used
     :return: the exact scalar score
     """
-    return c_align_scalar_normalized_reference_local(env.float64_matrix, s1.s_norm, len(s1), s2.s_norm, len(s2),
+    return c_align_scalar_normalized_reference_local(env.float64_matrix, s1.s_norm.encode('utf-8'), len(s1), s2.s_norm.encode('utf-8'), len(s2),
                                      env.gap_open, env.gap_ext, env.threshold)
 
 cpdef generate_env(log_pam1_env, new_pam, threshold=85.0):
@@ -448,14 +448,14 @@ def generate_all_env(log_pam1_env, env_num=1266, starting_pam=0.0494497343485592
 
 class Sequence:
     def __init__(self, s, is_normalized=False):
-
+    
         if isinstance(s, basestring):
             if not is_normalized:
                 self.s_norm = normalize_sequence(s)
             else:
                 self.s_norm = s
         elif isinstance(s, list):
-            self.s_norm = ''.join(map(chr, s))
+            self.s_norm = ''.join(list(map(chr, s)))
             if not is_normalized:
                 self.s_norm = normalize_sequence(self.s_norm)
         else:
@@ -553,7 +553,7 @@ cdef class AlignmentProfile:
         if self._c_profileByte is not NULL:
             pyopa.c_free_profile_byte_sse_local(self._c_profileByte)
 
-        self._c_profileByte = pyopa.c_create_profile_byte_sse_local(query, len(query), <signed char*> matrix.data)
+        self._c_profileByte = pyopa.c_create_profile_byte_sse_local(query.encode('utf-8'), len(query), <signed char*> matrix.data)
 
 
     cpdef create_profile_short(self, query, np.ndarray[np.int16_t,ndim=2] matrix):
@@ -573,7 +573,7 @@ cdef class AlignmentProfile:
         if self._c_profileShort is not NULL:
             pyopa.c_free_profile_short_sse_local(self._c_profileShort)
 
-        self._c_profileShort = pyopa.c_create_profile_short_sse_local(query, len(query),
+        self._c_profileShort = pyopa.c_create_profile_short_sse_local(query.encode('utf-8'), len(query),
                                                                              <signed short*> matrix.data)
 
 
@@ -593,7 +593,7 @@ cdef class AlignmentProfile:
         if self._c_profileDouble is not NULL:
             pyopa.free_profile_double_sse(self._c_profileDouble)
 
-        self._c_profileDouble = pyopa.createProfileDoubleSSE(query, len(query), <double*> matrix.data)
+        self._c_profileDouble = pyopa.createProfileDoubleSSE(query.encode('utf-8'), len(query), <double*> matrix.data)
 
 
     cpdef align_byte(self, s2, env):
@@ -608,7 +608,7 @@ cdef class AlignmentProfile:
 
         s2 = s2.s_norm
 
-        ret = pyopa.c_align_profile_byte_sse_local(self._c_profileByte, s2, len(s2),
+        ret = pyopa.c_align_profile_byte_sse_local(self._c_profileByte, s2.encode('utf-8'), len(s2),
                                                       env.int8_gap_open, env.int8_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
@@ -629,7 +629,7 @@ cdef class AlignmentProfile:
         s2 = s2.s_norm
 
         ret = pyopa.c_align_profile_short_sse_local(self._c_profileShort,
-                                                       s2, len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
+                                                       s2.encode('utf-8'), len(s2), env.int16_gap_open, env.int16_gap_ext, env.threshold)
         #do not scale back DBL_MAX
         if ret >= sys.float_info.max:
             return ret
@@ -656,10 +656,10 @@ cdef class AlignmentProfile:
         s2 = s2.s_norm
 
         if not stop_at_threshold:
-            res = pyopa.align_double_local(self._c_profileDouble, s2, len(s2),
+            res = pyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
                                        env.gap_open, env.gap_ext, sys.float_info.max, max1, max2)
         else:
-            res = pyopa.align_double_local(self._c_profileDouble, s2, len(s2),
+            res = pyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
                                        env.gap_open, env.gap_ext, env.threshold, max1, max2)
 
         ret.append(res)
@@ -774,7 +774,7 @@ cdef class MutipleAlEnv:
         cdef double result[3]
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
 
-        pyopa.EstimatePam(s1.s_norm, s2.s_norm, len(s1),
+        pyopa.EstimatePam(s1.s_norm.encode('utf-8'), s2.s_norm.encode('utf-8'), len(s1),
                           self._c_dayMatrices, self.dms_len, <double*> logpam.data, result)
         ret = [0.0] * 3
         ret[0] = result[0]

@@ -17,11 +17,11 @@ s1 = pyopa.Sequence('AAA')
 s2 = pyopa.Sequence('TTT')
 
 #prints [30.0, 2, 2, 0, 0], the first element is the score
-print pyopa.align_double(s1, s1, env)
+print(pyopa.align_double(s1, s1, env))
 
 #prints [0.0, -1, -1, 0, 0], the score is 0
 # since the score for 'A -> T' is undefined
-print pyopa.align_double(s2, s1, env)
+print(pyopa.align_double(s2, s1, env))
 
 #---------------------------------------------------------------------------------------------------
 #loading the default environments from the data directory
@@ -51,10 +51,10 @@ s2 = pyopa.Sequence('AAAA')
 s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
 
 #not optimal, multiple hidden profile generations in the background
-print pyopa.align_short(s1, s2, generated_env)
-print pyopa.align_short(s1, s3, generated_env)
-print pyopa.align_byte(s1, s2, generated_env)
-print pyopa.align_byte(s1, s3, generated_env)
+print(pyopa.align_short(s1, s2, generated_env))
+print(pyopa.align_short(s1, s3, generated_env))
+print(pyopa.align_byte(s1, s2, generated_env))
+print(pyopa.align_byte(s1, s3, generated_env))
 
 #one profile generation
 profile = pyopa.AlignmentProfile()
@@ -63,10 +63,10 @@ profile.create_profiles(s1, generated_env)
 #the following code produces the exact same result
 #but is more efficient since it's
 #using the same profile for multiple alignments
-print profile.align_short(s2, generated_env)
-print profile.align_short(s3, generated_env)
-print profile.align_byte(s2, generated_env)
-print profile.align_byte(s3, generated_env)
+print(profile.align_short(s2, generated_env))
+print(profile.align_short(s3, generated_env))
+print(profile.align_byte(s2, generated_env))
+print(profile.align_byte(s3, generated_env))
 #---------------------------------------------------------------------------------------------------
 generated_env.threshold = 50.0
 #WRONG: the short and byte matrices are not recomputed!!!
@@ -79,12 +79,11 @@ generated_env.create_scaled_matrices()
 
 #and then create the profile
 profile.create_profiles(s1, generated_env)
-
 #now we can do alignments with the new profile:
-print profile.align_short(s3, generated_env)
+print(profile.align_short(s3, generated_env))
 #---------------------------------------------------------------------------------------------------
 #always a local alignment
-print pyopa.align_scalar_reference_local(s1, s2, generated_env)
+print(pyopa.align_scalar_reference_local(s1, s2, generated_env))
 #---------------------------------------------------------------------------------------------------
 s1_norm = pyopa.normalize_sequence('AATCGGA')
 
@@ -92,12 +91,10 @@ s1_norm = pyopa.normalize_sequence('AATCGGA')
 s1 = pyopa.Sequence(s1_norm, True)
 s2 = pyopa.Sequence('AAAA')
 
-print s1
-print s2
 #construct from a byte array, prints ACCA
-print pyopa.Sequence([0, 2, 2, 0], True)
+print(pyopa.Sequence([0, 2, 2, 0], True))
 
-print pyopa.align_double(s1, s2, generated_env)
+print(pyopa.align_double(s1, s2, generated_env))
 #---------------------------------------------------------------------------------------------------
 s1 = pyopa.Sequence('AATCGGA')
 s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
@@ -105,10 +102,10 @@ s3 = pyopa.Sequence('CATACCTGGTGTGATGCC')
 #  it is NOT a global alignment, and computes the ranges
 #returns [19.946, 6, 8, 0, 2], the first element is the score
 # the 4 other elements are [max1, max2, min1, min2] the ranges
-print pyopa.align_double(s1, s3, generated_env, False, False, True)
+print(pyopa.align_double(s1, s3, generated_env, False, False, True))
 
 #returns [score, max1, max2] because the last flag (calculate ranges) is false
-print pyopa.align_double(s1, s3, generated_env, False, False, False)
+print(pyopa.align_double(s1, s3, generated_env, False, False, False))
 
 generated_env.threshold = 10.0
 #no generated_env.create_scaled_matrices() is needed
@@ -116,19 +113,19 @@ generated_env.threshold = 10.0
 
 #results in [11.499268729503227, 3, 0, 3, 0], not the best possible
 # local alignment, but still over the threshold of 10.0
-print pyopa.align_double(s1, s3, generated_env, True, False, True)
+print(pyopa.align_double(s1, s3, generated_env, True, False, True))
 
 #global alignment, stop at threshold is ignored
-print pyopa.align_double(s1, s3, generated_env, True, True, True)
+print(pyopa.align_double(s1, s3, generated_env, True, True, True))
 #---------------------------------------------------------------------------------------------------
 #to do the concrete alignment in a new thread
 #or alternatively you can increase your stack size on UNIX-based systems:
 #'resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))'
 def nt_align(s1, s2, env, is_global, aligned_strs):
-    print 'Concrete %s alignment:' % ('global' if is_global else 'local')
+    print('Concrete %s alignment:' % ('global' if is_global else 'local'))
     tmp_aligned_strings = pyopa.align_strings(s1, s2, env, is_global)
-    print '\taligned_s1: %s' % tmp_aligned_strings[0]
-    print '\taligned_s2: %s' % tmp_aligned_strings[1]
+    print('\taligned_s1: %s' % tmp_aligned_strings[0])
+    print('\taligned_s2: %s' % tmp_aligned_strings[1])
     aligned_strs.extend(tmp_aligned_strings)
 
 s1 = pyopa.Sequence('PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF')
@@ -142,12 +139,12 @@ t = threading.Thread(None, nt_align,
                      'Aligning Thread', (s1, s2, generated_env, False, aligned_strings))
 t.start()
 t.join()
-print aligned_strings[0]
-print aligned_strings[1]
+print(aligned_strings[0])
+print(aligned_strings[1])
 #---------------------------------------------------------------------------------------------------
 dms = pyopa.MutipleAlEnv(gen_env_list, log_pam1_env)
 
 #returns an array: [similarity, pam_distance, variance]
-print dms.estimate_pam(aligned_strings[0], aligned_strings[1])
+print(dms.estimate_pam(aligned_strings[0], aligned_strings[1]))
 
 

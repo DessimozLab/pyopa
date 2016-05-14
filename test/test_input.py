@@ -3,7 +3,7 @@ import threading
 import unittest
 import os
 import array
-
+import sys
 
 class UtilTest(unittest.TestCase):
     def setUp(self):
@@ -17,22 +17,26 @@ class UtilTest(unittest.TestCase):
 
     def test_norm_seq(self):
         s1 = pyopa.normalize_sequence('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-        ref = str(bytearray(range(26)))
-        self.assertEquals(s1, ref)
+        if (sys.version_info < (3,)):
+            ref = bytearray(range(26))
+            self.assertEqual(s1, ref)
+        else:
+            ref = bytes(range(26)).decode('utf-8')
+            self.assertEqual(s1, ref)
 
         #do not normalize '_' character
         s1 = pyopa.normalize_sequence('__________________________')
-        self.assertEquals(s1, '__________________________')
+        self.assertEqual(s1, '__________________________')
 
         self.assertRaises(ValueError, pyopa.normalize_sequence, 'ABCDEFGHIJLM NOPQRSTUVWXYZ')
 
     def test_scale(self):
-        self.assertEquals(pyopa.scale_to_byte(3, 5), 15)
-        self.assertEquals(pyopa.scale_to_short(3, 5), 15)
+        self.assertEqual(pyopa.scale_to_byte(3, 5), 15)
+        self.assertEqual(pyopa.scale_to_short(3, 5), 15)
 
         #underflow can occur, an overflow should cause an exception
-        self.assertEquals(pyopa.scale_to_byte(3, -50), -128)
-        self.assertEquals(pyopa.scale_to_short(3, -15000), -32768)
+        self.assertEqual(pyopa.scale_to_byte(3, -50), -128)
+        self.assertEqual(pyopa.scale_to_short(3, -15000), -32768)
 
         self.assertRaises(OverflowError, pyopa.scale_to_byte, 3, 50)
         self.assertRaises(OverflowError, pyopa.scale_to_short, 3, 15000)
@@ -50,14 +54,14 @@ class UtilTest(unittest.TestCase):
         s_short4 = pyopa.Sequence('B')
         s_short5 = pyopa.Sequence('')
 
-        self.assertEquals(pyopa.align_double(s_short1, s_short1, env_a)[0], 3 * simple_score)
-        self.assertEquals(pyopa.align_double(s_short2, s_short2, env_b)[0], 3 * simple_score)
-        self.assertEquals(pyopa.align_double(s_short3, s_short3, env_a)[0], 1 * simple_score)
-        self.assertEquals(pyopa.align_double(s_short4, s_short4, env_b)[0], 1 * simple_score)
-        self.assertEquals(pyopa.align_double(s_short3, s_short5, env_a)[0], 0.0)
-        self.assertEquals(pyopa.align_double(s_short5, s_short5, env_a)[0], 0.0)
-        self.assertEquals(pyopa.align_double(s_short3, s_short1, env_a)[0], 1 * simple_score)
-        self.assertEquals(pyopa.align_double(s_short1, s_short3, env_a)[0], 1 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short1, s_short1, env_a)[0], 3 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short2, s_short2, env_b)[0], 3 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short3, s_short3, env_a)[0], 1 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short4, s_short4, env_b)[0], 1 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short3, s_short5, env_a)[0], 0.0)
+        self.assertEqual(pyopa.align_double(s_short5, s_short5, env_a)[0], 0.0)
+        self.assertEqual(pyopa.align_double(s_short3, s_short1, env_a)[0], 1 * simple_score)
+        self.assertEqual(pyopa.align_double(s_short1, s_short3, env_a)[0], 1 * simple_score)
 
         self.assertRaises(ValueError, pyopa.create_environment, -2, -1, 20, simple_scores, 'AB')
         self.assertRaises(ValueError, pyopa.create_environment, -2, -1, 20, simple_scores, '')
@@ -102,7 +106,7 @@ class UtilTest(unittest.TestCase):
         aligned_strings = pyopa.align_strings(self.s1, self.s2, self.env, False, alignment_full_ranges)
         aligned_strings_norm = pyopa.align_strings(self.s1, self.s2, self.env)
 
-        self.assertEquals(aligned_strings, aligned_strings_norm)
+        self.assertEqual(aligned_strings, aligned_strings_norm)
 
         #check __ne__
         self.assertNotEqual(aligned_strings[0], aligned_strings[1])
@@ -118,19 +122,23 @@ class UtilTest(unittest.TestCase):
 
         #checking non-normalized constructor
         s = pyopa.Sequence(s_string)
-        self.assertEquals(s.convert_readable(), s_string)
+        self.assertEqual(s.convert_readable(), s_string)
 
         #normalized constructor
         s = pyopa.Sequence(s_normalized, True)
-        self.assertEquals(s.convert_readable(), s_string)
+        self.assertEqual(s.convert_readable(), s_string)
 
         #wrong type exception
-        s_bytes = array.array('B', s_string)
-        self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
-
+        if (sys.version_info < (3,)): 
+            s_bytes = array.array('B', s_string)
+            self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
+        else:
+            s_bytes = s_string.encode('utf-8')
+            self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
+            
         #normalized and non-normalized byte list constructor
-        self.assertEquals('ACA_', pyopa.Sequence([0, 2, 0, ord('_')], True))
-        self.assertEquals('ACA_', pyopa.Sequence([65, 67, 65, ord('_')], False))
+        self.assertEqual('ACA_', pyopa.Sequence([0, 2, 0, ord('_')], True))
+        self.assertEqual('ACA_', pyopa.Sequence([65, 67, 65, ord('_')], False))
 
 if __name__ == '__main__':
     unittest.main()

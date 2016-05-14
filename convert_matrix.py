@@ -27,7 +27,7 @@ def convert_to_json(matrix_file):
         tmp_frequencies = [float(x) for x in line.split()]
         sum_freq = sum(tmp_frequencies)
         #sum should be 1
-        json_data['frequencies'] = list(map(lambda x: x/sum_freq, tmp_frequencies))
+        json_data['frequencies'] = [x/sum_freq for x in tmp_frequencies]
 
         for i in range(20):
             for j in range(i):

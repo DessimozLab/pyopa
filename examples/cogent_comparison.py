@@ -18,7 +18,7 @@ def all_against_all_double(sequences, env):
         profile.create_profile_double(sequences[i], env.float64_matrix)
 
         for j in range(i + 1, seq_num):
-            profile.align_double(seq_list[j], env)
+            profile.align_double(sequences[j], env)
 
 
 def all_against_all_double_old(sequences, env):
@@ -53,16 +53,15 @@ def read_sequences(seq_file):
     with open(seq_file) as f:
         sequences = f.readlines()
 
-    return map(lambda s: pyopa.Sequence(s.strip()), sequences)
+    return [pyopa.Sequence(s.strip()) for s in sequences]
 
 
 seqs = read_sequences(os.path.join(os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '../test/data/cmp_seqs.txt')))
-seq_list = list(seqs)
 env = pyopa.load_default_environments()['environments'][515]
 
 
-print('All against all (double precision): %fs' % measure_performance(all_against_all_double, seq_list, env))
-print('All against all (double precision old): %fs' % measure_performance(all_against_all_double_old, seq_list, env))
-print('All against all (byte estimation): %fs' % measure_performance(all_against_all_byte, seq_list, env))
-print('All against all (short estimation): %fs' % measure_performance(all_against_all_short, seq_list, env))
+print('All against all (double precision): %fs' % measure_performance(all_against_all_double, seqs, env))
+print('All against all (double precision old): %fs' % measure_performance(all_against_all_double_old, seqs, env))
+print('All against all (byte estimation): %fs' % measure_performance(all_against_all_byte, seqs, env))
+print('All against all (short estimation): %fs' % measure_performance(all_against_all_short, seqs, env))

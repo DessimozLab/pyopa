@@ -34,7 +34,7 @@ setup(
         (os.path.join(data_dir, 'data'), ['test/data/reference_test_results.dat', 'test/data/testseqs.txt']),
         (os.path.join(data_dir, 'data/matrices/json'),
          ['test/data/matrices/json/all_matrices.json', 'test/data/matrices/json/logPAM1.json']),
-        (data_dir, ['test/runall.py', 'test/test_darwin.py', 'test/test_input.py'])
+        (data_dir, ['test/test_darwin.py', 'test/test_input.py', 'test/test_env.py'])
     ],
     license='MPL 2.0',
     classifiers = [

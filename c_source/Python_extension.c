@@ -319,7 +319,7 @@ double c_align_double_global(double* matrix, const char *s1, int ls1,
 	/*double vScore[MAXMUTDIM];*/
 	int NoSelf = 0;
 	/* This totcells was a system variable and I have no idea what it is used for */
-	double totcells;
+	double totcells = 0.0;
 
 	DelFixed = gap_open;
 	DelIncr = gap_ext;

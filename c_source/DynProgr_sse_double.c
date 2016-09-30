@@ -102,7 +102,7 @@ double align_double_local(ProfileDouble* profileDouble, const char *s2, int ls2,
 	double /*Tcd, t, */MaxScore/*, Sj, Sj1, Tj, Tj1, Trd*/;
 
 	/* This totcells was a system variable and I have no idea what it is used for */
-	double totcells;
+	double totcells = 0;
 	double* swap;
 	double * current_profile = profileDouble->profile;
 	double new_cd1 = 0;

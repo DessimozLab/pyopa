@@ -20,13 +20,13 @@ setup(
 		package_name,
 		sources=[package_name+'.pyx'] + list(map(lambda c: os.path.join(c_dir, c), c_sources)),
 		#libraries=["swps3"],
-		#extra_link_args=["-L../"],
+		#extra_link_args=["-Wl,-stack_size", '-Wl,0x10000000'],
                 #extra_compile_args = ['-DPY_DEBUG'],
 		include_dirs=[c_dir, numpy.get_include()]
 	)]
     ),
     name=package_name,
-    version='0.6',
+    version='0.7.0',
     author='OMA Browser',
     author_email='contact@omabrowser.org',
     install_requires=['numpy', 'cython'],

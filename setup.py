@@ -1,5 +1,4 @@
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 from Cython.Build import cythonize
 import numpy
 import sys
@@ -13,6 +12,11 @@ c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c'
              'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c', 'DynProgr_sse_double.c']
 
 data_dir = os.path.join(sys.prefix, package_name + '_test')
+
+here = os.path.abspath(os.path.dirname(__file__))
+# Get the long description from the README file
+with open(os.path.join(here, 'README.rst')) as f:
+    long_description = f.read()
 
 setup(
     ext_modules = cythonize([
@@ -49,7 +53,9 @@ setup(
          'Programming Language :: Python :: 3.3',
          'Programming Language :: Python :: 3.4',
          ],
-    keywords='sequence alignments Smith-Waterman dynamic programming',
-    description='pyopa computes optimal pairwise sequence alignments using a vectorized implementation of the Smith-Waterman algorithm',
+    keywords='sequence alignments Smith-Waterman Needleman-Wunsch dynamic programming bioinformatics',
+    description='PyOPA - optimal pairwise sequence alignments',
+    long_description=long_description,
+    
     url='http://omabrowser.org/',
 )

@@ -25,7 +25,7 @@ class UtilTest(unittest.TestCase):
             ref = bytes(range(26)).decode('utf-8')
             self.assertEqual(s1, ref)
 
-        #do not normalize '_' character
+        # do not normalize '_' character
         s1 = pyopa.normalize_sequence('__________________________')
         self.assertEqual(s1, '__________________________')
 
@@ -35,7 +35,7 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(pyopa.scale_to_byte(3, 5), 15)
         self.assertEqual(pyopa.scale_to_short(3, 5), 15)
 
-        #underflow can occur, an overflow should cause an exception
+        # underflow can occur, an overflow should cause an exception
         self.assertEqual(pyopa.scale_to_byte(3, -50), -128)
         self.assertEqual(pyopa.scale_to_short(3, -15000), -32768)
 
@@ -92,13 +92,14 @@ class UtilTest(unittest.TestCase):
         self.assertAlmostEqual(pyopa.align_double(self.s1, self.s2, pyopa.AlignmentEnvironment())[0], 0.0)
         pyopa.align_double(self.s1, self.s2, self.env, True, True, True)
 
-    def test_align_strings(self):
-        threading.stack_size(4096*256*64)
-        t = threading.Thread(None, self._al_strs, 'Align Thread')
-        t.start()
-        t.join()
+    #def test_align_strings(self):
+    #    threading.stack_size(4096*256*64)
+    #    t = threading.Thread(None, self._al_strs, 'Align Thread')
+    #    t.start()
+    #    t.join()
 
-    def _al_strs(self):
+    #def _al_strs(self):
+    def test_align_strings(self):
         alignment_only_max_ranges = pyopa.align_double(self.s1, self.s2, self.env, False, False, False)
         alignment_full_ranges = pyopa.align_double(self.s1, self.s2, self.env, False, False, True)
 
@@ -109,7 +110,7 @@ class UtilTest(unittest.TestCase):
 
         self.assertEqual(aligned_strings, aligned_strings_norm)
 
-        #check __ne__
+        # check __ne__
         self.assertNotEqual(aligned_strings[0], aligned_strings[1])
 
     def test_estimate_pam(self):
@@ -121,15 +122,15 @@ class UtilTest(unittest.TestCase):
         s_string = 'TE_ST'
         s_normalized = pyopa.normalize_sequence(s_string)
 
-        #checking non-normalized constructor
+        # checking non-normalized constructor
         s = pyopa.Sequence(s_string)
         self.assertEqual(s.convert_readable(), s_string)
 
-        #normalized constructor
+        # normalized constructor
         s = pyopa.Sequence(s_normalized, True)
         self.assertEqual(s.convert_readable(), s_string)
 
-        #wrong type exception
+        # wrong type exception
         if (sys.version_info < (3,)): 
             s_bytes = array.array('B', s_string)
             self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
@@ -137,9 +138,10 @@ class UtilTest(unittest.TestCase):
             s_bytes = s_string.encode('utf-8')
             self.assertRaises(ValueError, pyopa.Sequence, s_bytes, True)
             
-        #normalized and non-normalized byte list constructor
+        # normalized and non-normalized byte list constructor
         self.assertEqual('ACA_', pyopa.Sequence([0, 2, 0, ord('_')], True))
         self.assertEqual('ACA_', pyopa.Sequence([65, 67, 65, ord('_')], False))
+
 
 if __name__ == '__main__':
     unittest.main()

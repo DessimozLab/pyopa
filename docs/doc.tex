@@ -72,11 +72,9 @@ Another possibility is to download, extract and install the package manually. Af
 python setup.py install
 \end{lstlisting}
 
-to install \pp{}. This should compile and install all the necessary files without any problems. To check whether the unit tests produce correct results on your computer, you can simply run them by a singe function call:
+to install \pp{}. This should compile and install all the necessary files without any problems. To check whether the unit tests produce correct results on your computer, you can simply run them by using the unittest framework:
 \begin{lstlisting}
-import pyopa
-
-pyopa.run_tests()
+python -m unittest discover test/
 \end{lstlisting}
 
 Unless you have your own data files (where you define, for example, the distance matrix, gap opening and extension costs), you have to use one of the matrices coming with \pp{}. All the data files that is necessary to run the unit tests and future operations on sequences are automatically installed into a separate folder (\emph{\textless{}sys.prefix\textgreater/\pp{}\_test/}) during installation. If you cannot locate or access the data files, you can download \pp{} and extract all of the files manually. The data files should be available under \emph{test/data/}, which you can use for future alignments. 
@@ -280,6 +278,8 @@ resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM
 
 Another, more general approach is to start the operation in a new thread with a given stack size:
 
+\textbf{Note that since pyopa version 0.8 this problem has been resolved. pyopa does no longer need a large stack.}
+
 \begin{lstlisting}
 #to do the concrete alignment in a new thread
 #or alternatively you can increase your stack size on UNIX-based systems:
@@ -293,7 +293,7 @@ def nt_align(s1, s2, env, is_global, aligned_strs):
 
 s1 = pyopa.Sequence('PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKVHGF')
 s2 = pyopa.Sequence('PIERIENNKILANTGVISVTIGVIIYQDLHADTVMTSDY')
-threading.stack_size(100000000)
+#threading.stack_size(100000000)
 
 # aligned_s1: PISRIDNNKITTTLGNTGIISVTIGVIIFKDLHAKV
 # aligned_s2: PIERIENNKI___LANTGVISVTIGVIIYQDLHADT

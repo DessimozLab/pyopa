@@ -26,7 +26,8 @@ setup(
                     list(map(lambda c: os.path.join(c_dir, c), c_sources)),
             # libraries=["swps3"],
             # extra_link_args=["-Wl,-stack_size", '-Wl,0x10000000'],
-            # extra_compile_args = ['-DPY_DEBUG'],
+            extra_compile_args=['-O2'],  #, '-DPY_DEBUG'],
+            extra_link_args=["-ltcmalloc"],
             include_dirs=[c_dir, numpy.get_include(), '.']
         )]
     ),

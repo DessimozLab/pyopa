@@ -5,7 +5,9 @@ from . import backend
 class Aligner(object):
     def __init__(self, env=None):
         if env is None:
-            self.environments, self.pam1 = backend.pyopa.load_default_environments()
+            envs = backend.pyopa.load_default_environments()
+            self.environments = envs['environments']
+            self.pam1 = envs['log_pam1']
         else:
             raise NotImplementedError("non-default environments are not yet implemented")
         self._pam_distances = [env.pam for env in self.environments]

@@ -12,35 +12,10 @@ cimport cpyopa
 cimport numpy as np
 import numpy as np
 
-def load_test():
-    logging.warning("package is {}, so hopefully that's right".format(__package__))
-    return pkgutil.get_data(__package__, 'test/data/cmp_seqs.txt')
-
-
-def test_dir():
-    """
-    This function returns a path to the default test directory (the directory that should be created during
-    installation time, if the user has appropriate permissions).
-    :return: the default data directory
-    """
-    default_test_dir = os.path.join(sys.prefix, 'pyopa_test')
-    if not os.path.exists(default_test_dir):
-        raise IOError('The default test directory does not exists at !' % default_test_dir)
-
-    return default_test_dir
-
-
-def data_dir():
-    default_data_dir = os.path.join(test_dir(), 'data/')
-
-    if not os.path.exists(default_data_dir):
-        raise IOError('The default data directory does not exists at %s!' % default_data_dir)
-
-    return default_data_dir
-
 
 def matrix_dir():
-    default_matrix_dir = os.path.realpath(os.path.join(__file__, '..', 'matrices', 'json'))
+    default_matrix_dir = os.path.realpath(
+        os.path.join(os.path.dirname(__file__), '..', 'matrices', 'json'))
 
     if not os.path.exists(default_matrix_dir):
         raise IOError('The default matrix directory does not exists at %s!' % default_matrix_dir)
@@ -54,15 +29,6 @@ def load_default_environments():
         'log_pam1': read_env_json((os.path.join(matrix_dir(), 'logPAM1.json')))
     }
     return default_envs
-
-
-def run_tests():
-    """
-    Runs the available unit tests.
-    :return:
-    """
-    cmd = 'python -m unittest discover ' + test_dir()
-    call(cmd, shell=True)
 
 
 def normalize_sequence(s):
@@ -257,7 +223,7 @@ def align_byte(s1, s2, env):
     :return: the byte estimation of the score
     """
     p = AlignmentProfile()
-    if isinstance(env, basestring):
+    if isinstance(env, str):
         env = read_env_json(env)
     p.create_profiles(s1, env)
 

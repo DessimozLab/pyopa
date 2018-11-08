@@ -3,6 +3,7 @@ import pyopa
 import numpy
 import os
 
+
 class EnvironmentCreatorTest(unittest.TestCase):
     
     def setUp(self):
@@ -25,6 +26,7 @@ class EnvironmentCreatorTest(unittest.TestCase):
                 self.assertAlmostEqual(attr_gen, attr_load, delta=1e-10*abs(attr_load),
                                        msg='attr {} differ for env[{}]: {:.12g} != {:.12g}'
                                            .format(memb, i, attr_gen, attr_load))
+
 
 if __name__=='__main__':
     unittest.main()

@@ -7,5 +7,4 @@ include c_source/Page_size.h c_source/DynProgr_sse_double.h
 include pyopa/backend/cpyopa.pxd pyopa/backend/pyopa.pyx
 include examples/*.py
 include test/*.py
-include test/data/*.*
-include test/data/matrices/json/*
+include test/data/*

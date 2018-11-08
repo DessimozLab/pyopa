@@ -27,7 +27,7 @@ setup(
             # libraries=["swps3"],
             # extra_link_args=["-Wl,-stack_size", '-Wl,0x10000000'],
             extra_compile_args=['-O2'],  #, '-DPY_DEBUG'],
-            extra_link_args=["-ltcmalloc"],
+            #extra_link_args=["-ltcmalloc"],
             include_dirs=[c_dir, numpy.get_include(), '.']
         )]
     ),

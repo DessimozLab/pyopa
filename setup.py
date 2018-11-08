@@ -1,9 +1,9 @@
-from setuptools import setup, Extension
+from setuptools import setup, find_packages
+from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
 import sys
 import os
-
 
 package_name = 'pyopa'
 
@@ -19,43 +19,48 @@ with open(os.path.join(here, 'README.rst')) as f:
     long_description = f.read()
 
 setup(
-    ext_modules = cythonize([
-	    Extension(
-		package_name,
-		sources=[package_name+'.pyx'] + list(map(lambda c: os.path.join(c_dir, c), c_sources)),
-		#libraries=["swps3"],
-		#extra_link_args=["-Wl,-stack_size", '-Wl,0x10000000'],
-                #extra_compile_args = ['-DPY_DEBUG'],
-		include_dirs=[c_dir, numpy.get_include()]
-	)]
+    ext_modules=cythonize([
+        Extension(
+            package_name + ".backend.pyopa",
+            sources=[os.path.join(package_name, 'backend', 'pyopa.pyx')] +
+                    list(map(lambda c: os.path.join(c_dir, c), c_sources)),
+            # libraries=["swps3"],
+            # extra_link_args=["-Wl,-stack_size", '-Wl,0x10000000'],
+            # extra_compile_args = ['-DPY_DEBUG'],
+            include_dirs=[c_dir, numpy.get_include(), '.']
+        )]
     ),
     name=package_name,
-    version='0.7.0',
+    version='0.7.1',
     author='OMA Browser',
     author_email='contact@omabrowser.org',
-    install_requires=['numpy', 'cython'],
-    data_files=[
-        (os.path.join(data_dir, 'data'), ['test/data/reference_test_results.dat', 'test/data/testseqs.txt']),
-        (os.path.join(data_dir, 'data/matrices/json'),
-         ['test/data/matrices/json/all_matrices.json', 'test/data/matrices/json/logPAM1.json']),
-        (data_dir, ['test/test_darwin.py', 'test/test_input.py', 'test/test_env.py'])
-    ],
+    install_requires=['numpy'],
+    #data_files=[
+    #    (os.path.join(data_dir, 'data'), ['test/data/reference_test_results.dat', 'test/data/testseqs.txt']),
+    #    (os.path.join(data_dir, 'data/matrices/json'),
+    #     ['test/data/matrices/json/all_matrices.json', 'test/data/matrices/json/logPAM1.json']),
+    #    (data_dir, ['test/test_darwin.py', 'test/test_input.py', 'test/test_env.py'])
+    #],
+    packages=find_packages(),
+    include_package_data=True,
     license='MPL 2.0',
-    classifiers = [
-         'Development Status :: 3 - Alpha',
-         'Intended Audience :: Developers',
-         'Intended Audience :: Science/Research',
-         'Topic :: Scientific/Engineering :: Bio-Informatics',
-         'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
-         'Programming Language :: Python :: 2',
-         'Programming Language :: Python :: 2.7',
-         'Programming Language :: Python :: 3',
-         'Programming Language :: Python :: 3.3',
-         'Programming Language :: Python :: 3.4',
-         ],
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+        'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+    ],
     keywords='sequence alignments Smith-Waterman Needleman-Wunsch dynamic programming bioinformatics',
     description='PyOPA - optimal pairwise sequence alignments',
     long_description=long_description,
-    
+
     url='http://omabrowser.org/',
 )

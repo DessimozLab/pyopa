@@ -139,14 +139,12 @@ double c_align_scalar_reference_local(DMatrix matrix, const char *s1, int ls1,
 int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 		double escore, char *o1, char *o2, double maxerr, double gap_open,
 		double gap_ext) {
-	int DelFrom1[MAXSEQLEN + 1], i, i1, j/*, M1*/;
-	double S1[MAXSEQLEN + 1], coldel1[MAXSEQLEN + 1];
+	int i, i1, j;
+	int *DelFrom1 = NULL;
+	double *S1 = NULL, *coldel1 = NULL;
 	double Slen2i, maxs, t;
-	char rs1[2 * MAXSEQLEN], rs2[MAXSEQLEN], *prs1, *prs2;
+	char *tprs1 = NULL, *tprs2 = NULL, *prs1, *prs2;
 	double tot;
-	/*int Global = 2;*/
-	/* this NoSelf could be a parameter */
-	/*int NoSelf = 0;*/
 
 	/* make len1 >= len2 */
 	if (len1 < len2) {
@@ -192,8 +190,7 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 	/* equal length, try to see if there is a match without deletions */
 	if (len1 == len2 && s1 != s2) {
 		for (i = tot = 0; i < len1; i++)
-			tot += /*DMScore(s1[i],s2[i],matrix)*/matrix[s1[i] * MATRIX_DIM
-					+ s2[i]];
+			tot += matrix[s1[i] * MATRIX_DIM + s2[i]];
 		if (tot >= escore) {
 			for (i = 0; i < len1; i++) {
 				o1[i] = s1[i];
@@ -220,37 +217,38 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 	/* reverse strings */
 	if (s1 - s2 >= 0 && s2 + len2 - s1 > 0) {
 		j = MMAX(s1 - s2 + len1, len2);
+		tprs1 = (char*) malloc(j * sizeof(char));
 		for (i = 0; i < j; i++)
-			rs1[j - 1 - i] = s2[i];
-		prs1 = rs1 + (j + s2 - s1 - len1);
-		prs2 = rs1 + (j - len2);
+			tprs1[j - 1 - i] = s2[i];
+		prs1 = tprs1 + (j + s2 - s1 - len1);
+		prs2 = tprs1 + (j - len2);
 	} else if (s2 - s1 >= 0 && s1 + len1 - s2 > 0) {
 		j = MMAX(s2 - s1 + len2, len1);
+		tprs1 = (char*) malloc(j * sizeof(char));
 		for (i = 0; i < j; i++)
-			rs1[j - 1 - i] = s1[i];
-		prs2 = rs1 + (j + s1 - s2 - len2);
-		prs1 = rs1 + (j - len1);
+			tprs1[j - 1 - i] = s1[i];
+		prs2 = tprs1 + (j + s1 - s2 - len2);
+		prs1 = tprs1 + (j - len1);
 	} else {
+	    tprs1 = (char*) malloc(len1 * sizeof(char));
+	    tprs2 = (char*) malloc(len2 * sizeof(char));
 		for (i = 0; i < len2; i++)
-			rs2[len2 - 1 - i] = s2[i];
+			tprs2[len2 - 1 - i] = s2[i];
 		for (i = 0; i < len1; i++)
-			rs1[len1 - 1 - i] = s1[i];
-		prs1 = rs1;
-		prs2 = rs2;
+			tprs1[len1 - 1 - i] = s1[i];
+		prs1 = tprs1;
+		prs2 = tprs2;
 	}
 
 	/* divides s1 in half */
 	i1 = len1 / 2;
-	/*seq1.ds = s1;
-	 seq2.ds = s2;*/
 	c_align_double_global(matrix, s1, i1, s2, len2, gap_open, gap_ext);
+	S1 = (double*) malloc((len2+1) * sizeof(double));
+	coldel1 = (double*) malloc((len2 + 1) * sizeof(double));
+	DelFrom1 = (int*) malloc((len2 + 1) * sizeof(int));
 	for (i = 0; i <= len2; i++) {
-		S1[i] = S[i];
-		coldel1[i] = coldel[i];
-		DelFrom1[i] = DelFrom[i];
+		S1[i] = S[i]; coldel1[i] = coldel[i]; DelFrom1[i] = DelFrom[i];
 	}
-	/*seq1.ds = prs1;
-	 seq2.ds = prs2;*/
 	c_align_double_global(matrix, prs1, len1 - i1, prs2, len2, gap_open,
 			gap_ext);
 
@@ -268,16 +266,6 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 			i = j;
 		}
 	}
-	/*if( !(maxerr != 0 || maxs==escore) ) {
-	 printf( "DM->bits=%d, gap_open=%.18g, gap_ext=%.18g\n",
-	 DM->bits, gap_open, gap_ext );
-	 printf( "maxerr=%.18g, maxs=%.18g, escore=%.18g\n",
-	 maxerr, maxs, escore );
-	 }
-	 ASSERT2( maxerr != 0 || maxs==escore, NewNumber(maxs), NewNumber(escore) );
-	 if( ENVprintlevel > 0 && maxs < escore-maxerr )
-	 fprintf( w_unit, "Warning: DynProgStrings could not reach "
-	 "score %.12g, reached %.12g instead\n", escore, maxs );*/
 
 	/* splitting on a match */
 	if (maxs == S1[i] + S[len2 - i]) {
@@ -286,6 +274,7 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 				gap_ext);
 		j += c_align_strings(matrix, s1 + i1, len1 - i1, s2 + i, len2 - i,
 				Slen2i, o1 + j, o2 + j, 0.0, gap_open, gap_ext);
+		free(tprs1); free(tprs2); free(S1); free(DelFrom1); free(coldel1);
 		return (j);
 	}
 
@@ -305,6 +294,7 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 		len += c_align_strings(matrix, s1 + i4 - 1, len1 - i4 + 1, s2 + i,
 				len2 - i, Slen2i - gap_open - gap_ext * (i4 - i1 - 2), o1 + len,
 				o2 + len, 0.0, gap_open, gap_ext);
+		free(tprs1); free(tprs2); free(S1); free(DelFrom1); free(coldel1);
 		return (len);
 	}
 	return 0;
@@ -313,7 +303,7 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 double c_align_double_global(double* matrix, const char *s1, int ls1,
 		const char *s2, int ls2, double gap_open, double gap_ext) {
 	int i, j, k;
-	int AToInts2[MAXSEQLEN + 1];
+	int *AToInts2 = NULL;
 	double DelFixed, DelIncr, *Score_s1 = NULL;
 	double t, t2/*, MaxScore*/, rowdel, Sj1;
 	/*double vScore[MAXMUTDIM];*/
@@ -325,6 +315,7 @@ double c_align_double_global(double* matrix, const char *s1, int ls1,
 	DelIncr = gap_ext;
 
 	/*MaxScore = MINUSINF;*/
+	AToInts2 = (int*) malloc((ls2 + 1) * sizeof(int));
 	S[0] = coldel[0] = 0;
 	for (j = 1; j <= ls2; j++) {
 		/*if (s2[j - 1] == '_')
@@ -429,6 +420,7 @@ double c_align_double_global(double* matrix, const char *s1, int ls1,
 	 if (mode == Global) {
 	 *Max1 = ls1;
 	 *Max2 = ls2;*/
+	free(AToInts2);
 	return (S[ls2]);
 	/*}
 	 return (MaxScore);*/

@@ -5,6 +5,5 @@ include c_source/Python_extension.h c_source/DynProgr_sse_short.h c_source/DynPr
 include c_source/DynProgr_scalar.h c_source/matrix.h c_source/debug.h c_source/swps3.h c_source/EstimatePam.h
 include c_source/Page_size.h c_source/DynProgr_sse_double.h
 include pyopa/backend/cpyopa.pxd pyopa/backend/pyopa.pyx
-include examples/*.py
-include test/*.py
-include test/data/*
+include pyopa/matrices/*
+include pyopa/matrices/json/*

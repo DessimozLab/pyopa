@@ -21,8 +21,8 @@ class RunTimeOfLongSequenceTest(unittest.TestCase):
 
     def test_runtime_single_matrix(self):
         env = self.aligner.environment_at_distance(self.data['distance'])
-        s1 = pyopa.Sequence(self.data['s1'])
-        s2 = pyopa.Sequence(self.data['s2'])
+        s1 = pyopa.Sequence(str(self.data['s1']))
+        s2 = pyopa.Sequence(str(self.data['s2']))
         t0 = time.time()
         nr_runs = 5
         for x in range(nr_runs):
@@ -34,8 +34,8 @@ class RunTimeOfLongSequenceTest(unittest.TestCase):
         print("Avg time used to compute alignment on fixed matrix: {}sec"
               .format((time.time()-t0) / nr_runs))
         print("Darwin's run time for this alignment: {}sec".format(self.data['time_single_matrix_align']))
-        self.assertEqual(self.data['as1'], as1)
-        self.assertEqual(self.data['as2'], as2)
+        self.assertEqual(str(self.data['as1']), as1)
+        self.assertEqual(str(self.data['as2']), as2)
 
         #self.aligner.align(self.data['s1'], self.data['s2'], env=env)
 

@@ -7,6 +7,7 @@ yum install -y atlas-devel libgfortran-static
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
     "${PYBIN}/pip" install -r /io/requirements.txt
+    "${PYBIN}/pip" install nose
     "${PYBIN}/pip" wheel /io/ -w wheelhouse/
 done
 
@@ -18,5 +19,5 @@ done
 # Install packages and test
 for PYBIN in /opt/python/*/bin/; do
     "${PYBIN}/pip" install pyopa --no-index -f /io/wheelhouse
-    (cd "$HOME"; "${PYBIN}/nosetests" pymanylinuxdemo)
+    (cd "$HOME"; "${PYBIN}/nosetests" pyopa)
 done

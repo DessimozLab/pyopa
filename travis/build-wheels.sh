@@ -11,12 +11,12 @@ for PYBIN in /opt/python/*/bin; do
 done
 
 # Bundle external shared libraries into the wheels
-for whl in wheelhouse/*.whl; do
+for whl in wheelhouse/pyopa*.whl; do
     auditwheel repair "$whl" -w /io/wheelhouse/
 done
 
 # Install packages and test
 for PYBIN in /opt/python/*/bin/; do
-    "${PYBIN}/pip" install python-manylinux-demo --no-index -f /io/wheelhouse
+    "${PYBIN}/pip" install pyopa --no-index -f /io/wheelhouse
     (cd "$HOME"; "${PYBIN}/nosetests" pymanylinuxdemo)
 done

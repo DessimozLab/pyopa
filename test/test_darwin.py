@@ -105,6 +105,7 @@ class AlignTest(unittest.TestCase):
     #    t.join()
 
     #def _align_t(self):
+    @unittest.skip("skip long runningtest")
     def test_align(self):
         print('Running alignment tests...')
         completed = 0

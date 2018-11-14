@@ -1,4 +1,4 @@
-include setup.py requirements.txt README.rst
+include setup.py requirements.txt pyproject.toml README.rst
 include c_source/Python_extension.c c_source/DynProgr_sse_short.c c_source/DynProgr_sse_byte.c
 include c_source/DynProgr_scalar.c c_source/EstimatePam.c c_source/Page_size.c c_source/DynProgr_sse_double.c
 include c_source/Python_extension.h c_source/DynProgr_sse_short.h c_source/DynProgr_sse_byte.h

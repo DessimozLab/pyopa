@@ -10,10 +10,13 @@ c_dir = 'c_source/'
 c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c',
              'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c', 'DynProgr_sse_double.c']
 
-here = os.path.abspath(os.path.dirname(__file__))
+__version__ = "Undefined"
+for line in open('{}/__init__.py'.format(package_name)):
+    if line.startswith('__version__'):
+        exec(line.strip())
 
 # Get the long description from the README file
-with open(os.path.join(here, 'README.rst')) as f:
+with open('README.rst') as f:
     long_description = f.read()
 
 setup(
@@ -23,16 +26,15 @@ setup(
             sources=[os.path.join(package_name, 'backend', 'pyopa.pyx')] +
                     list(map(lambda c: os.path.join(c_dir, c), c_sources)),
             extra_compile_args=['-O2'],  #, '-DPY_DEBUG'],
-            #extra_link_args=["-ltcmalloc"],
             include_dirs=[c_dir, numpy.get_include(), '.']
         )]
     ),
     name=package_name,
-    version='0.8.0_dev',
+    version=__version__,
     author='OMA Browser',
     author_email='contact@omabrowser.org',
     install_requires=['numpy'],
-    packages=find_packages(),
+    packages=find_packages(), 
     include_package_data=True,
     license='MPL 2.0',
     classifiers=[
@@ -44,7 +46,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',

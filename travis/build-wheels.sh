@@ -2,7 +2,6 @@
 set -e -x
 
 # Install a system package required by our library
-yum install -y atlas-devel libgfortran-static
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
@@ -19,5 +18,5 @@ done
 # Install packages and test
 for PYBIN in /opt/python/*/bin/; do
     "${PYBIN}/pip" install pyopa --no-index -f /io/wheelhouse
-    (cd "$HOME"; "${PYBIN}/nosetests" pyopa)
+    (cd "$HOME"; "${PYBIN}/nosetests" "/io/test")
 done

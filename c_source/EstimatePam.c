@@ -99,7 +99,7 @@ static void mexp(double *x2k, double *t, double *c, double *r, int n)
 
 	/* Compute k, number of powerings to leave norm<0.01 */
 	/*k = ilogb(200 * norm);*/
-	k = (int) (log(abs(200 * norm)) / log(FLT_RADIX));
+	k = (int) (log(fabs(200 * norm)) / log(FLT_RADIX));
 	if (k < 0)
 		k = 0;
 	/*if( k >= 1023 ) userror("cannot compute exp of a matrix");*/

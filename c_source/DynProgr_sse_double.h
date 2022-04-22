@@ -8,6 +8,10 @@
 #ifndef DYNPROGR_SSE_DOUBLE_H_
 #define DYNPROGR_SSE_DOUBLE_H_
 
+#include "swps3.h"
+#include "matrix.h"
+#include "simde/x86/sse2.h"
+
 typedef struct{
 	int ls1;
 	double* profile;

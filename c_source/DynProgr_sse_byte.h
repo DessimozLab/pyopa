@@ -32,8 +32,7 @@
 
 #include "swps3.h"
 #include "matrix.h"
-#include <xmmintrin.h>
-#include <emmintrin.h>
+#include "simde/x86/sse2.h"
 
 typedef struct{
 	int len;

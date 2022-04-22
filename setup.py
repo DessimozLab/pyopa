@@ -54,6 +54,5 @@ setup(
     keywords='sequence alignments Smith-Waterman Needleman-Wunsch dynamic programming bioinformatics',
     description='PyOPA - optimal pairwise sequence alignments',
     long_description=long_description,
-
     url='http://omabrowser.org/',
 )

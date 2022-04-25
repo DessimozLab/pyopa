@@ -61,36 +61,6 @@ jobs:
         with:
           path: dist/*.tar.gz
 
-  test_wheels:
-    needs: [ build_wheels ]
-    name: Test ${{ matrix.python-version }} ${{ matrix.arch }} wheels for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ 'ubuntu-latest', 'windows-latest', 'macos-latest' ]
-        python-version: ['3.7', '3.8', '3.9','3.10']
-
-
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          path: ./wheelhouse/
-
-      - name: Install Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.arch }}
-
-      - name: Install tables on ${{ matrix.python-version }}
-        run: |
-          pip install pytest
-          pip install --no-index --find-links wheelhouse/artifact/ tables
-      - name: Run tests on ${{ matrix.python-version }}
-        run: |
-          pytest
-
   upload_pypi:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest

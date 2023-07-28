@@ -23,9 +23,6 @@ jobs:
            - arch: arm64
              cibw_python: "cp*"
              os: macos-latest
-           - arch: aarch64
-             cibw_python: "cp*"
-             os: ubuntu-latest
            # tests are failing for now on windows.
            #- arch: AMD64
            #  cibw_python: "cp*"

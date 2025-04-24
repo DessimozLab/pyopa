@@ -12,6 +12,18 @@ to compute the optimal pairwise alignment using SSE vectorization operations.
 This package implements the Smith-Waterman and Needleman-Wunsch algorithm to
 compute the local and global sequence alignments.
 
+Installation
+------------
+
+You can install the package using pip:
+
+.. code-block:: bash
+
+   pip install pyopa
+
+We provide wheels for Linux, MacOS (x86_64) and (arm64) for cpython.
+
+
 Example
 -------
 

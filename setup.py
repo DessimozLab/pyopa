@@ -26,8 +26,9 @@ setup(
             sources=[os.path.join(package_name, 'backend', 'pyopa.pyx')] +
                     list(map(lambda c: os.path.join(c_dir, c), c_sources)),
             extra_compile_args=['-O2', '-DSIMDE_ENABLE_NATIVE_ALIASES'], #, '-DPY_DEBUG'],
-            include_dirs=[c_dir, numpy.get_include(), '.']
-        )]
+            include_dirs=[c_dir, os.path.join(package_name, "backend"), numpy.get_include(), '.']
+        )],
+        compiler_directives={"language_level": "3"},
     ),
     name=package_name,
     version=__version__,

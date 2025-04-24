@@ -44,6 +44,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: pypi-wheel-${{ matrix.os }}-${{ matrix.arch }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -59,6 +60,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: pypi-src
           path: dist/*.tar.gz
 
   upload_pypi:
@@ -68,14 +70,20 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
     # if: github.event_name == 'release' && github.event.action == 'published'
+    permissions:
+      # short-lived token for trusted publishing
+      id-token: write
+
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: artifact
+          name: pypi-*
           path: dist
+          merge-multiple: true
+
+      - name: List all artifacts
+        run: ls -R
 
       - uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          # To test: repository_url: https://test.pypi.org/legacy/
+          packages-dir: dist/

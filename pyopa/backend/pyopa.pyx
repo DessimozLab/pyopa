@@ -1,16 +1,18 @@
+# cython: language_level=3
+
 import json
-import logging
 import math
 import os
-import pkgutil
 import re
 import sys
 from math import log10
-from subprocess import call
 
-cimport cpyopa
+from . cimport cpyopa
 cimport numpy as np
 import numpy as np
+
+
+
 
 
 def matrix_dir():

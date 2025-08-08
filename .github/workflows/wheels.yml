@@ -39,7 +39,7 @@ jobs:
           CIBW_BUILD_VERBOSITY_MACOS: 3
           CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_BUILD: ${{ matrix.cibw_python }}
-          CIBW_TEST_COMMAND: pytest {project}/test
+          CIBW_TEST_COMMAND: pytest -v {project}/test
           CIBW_TEST_REQUIRES: pytest
 
       - uses: actions/upload-artifact@v4

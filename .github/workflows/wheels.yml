@@ -42,7 +42,7 @@ jobs:
           CIBW_TEST_COMMAND: pytest -v {project}/test
           CIBW_TEST_REQUIRES: pytest
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pypi-wheel-${{ matrix.os }}-${{ matrix.arch }}
           path: ./wheelhouse/*.whl
@@ -58,7 +58,7 @@ jobs:
       - name: Build sdist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pypi-src
           path: dist/*.tar.gz

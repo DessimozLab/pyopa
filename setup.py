@@ -17,7 +17,8 @@ setup(
             package_name + ".backend.pyopa",
             sources=[os.path.join(package_name, 'backend', 'pyopa.pyx')] +
                     list(map(lambda c: os.path.join(c_dir, c), c_sources)),
-            extra_compile_args=['-O2', '-DSIMDE_ENABLE_NATIVE_ALIASES'], #, '-DPY_DEBUG'],
+            extra_compile_args=['-O2', '-DSIMDE_ENABLE_NATIVE_ALIASES', '-fopenmp', '-march=native'], #, '-DPY_DEBUG'],
+            extra_link_args=['-fopenmp'],
             include_dirs=[c_dir, os.path.join(package_name, "backend"), numpy.get_include(), '.']
         )],
         compiler_directives={"language_level": "3"},

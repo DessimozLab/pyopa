@@ -1,5 +1,8 @@
 # cython: language_level=3
 
+from cython.parallel import prange
+from libc.stdlib cimport malloc, free
+import cython
 import json
 import math
 import os
@@ -10,6 +13,7 @@ from math import log10
 from . cimport cpyopa
 cimport numpy as np
 import numpy as np
+cimport openmp
 
 
 
@@ -754,6 +758,67 @@ cdef class MutipleAlEnv:
         ret[2] = result[2]
 
         return ret
+
+    @cython.cdivision(True)
+    def estimate_many_pam(self, seqs, num_threads=0):
+        cdef int n = len(seqs)
+        if n < 2:
+            raise ValueError('Must pass atleast 2 sequences!')
+
+        cdef int seq_len = len(seqs[0])
+        for i in range(1, n):
+            if len(seqs[i]) != seq_len:
+                raise ValueError('All lengths must be equal!')
+
+        cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
+        cdef double* logpam_ptr = <double*> logpam.data
+
+        n_pairs = (n**2 - n) // 2
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] score = np.empty(shape=(n_pairs), dtype=np.float64)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] dist = np.empty(shape=(n_pairs), dtype=np.float64)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] var = np.empty(shape=(n_pairs), dtype=np.float64)
+        cdef double* score_ptr = <double*> score.data
+        cdef double* dist_ptr = <double*> dist.data
+        cdef double* var_ptr = <double*> var.data
+
+        cdef cpyopa.DayMatrix* c_dayMatrices = self._c_dayMatrices
+        cdef int dms_len = self.dms_len
+        
+        seqs_bytes = [s.s_norm.encode('utf-8') for s in seqs]
+        cdef char** c_seqs = <char**> malloc(n*sizeof(char*))
+        if not c_seqs:
+            raise MemoryError("Failed to allocate sequence pointers")
+
+        cdef Py_ssize_t k
+        cdef int seq_i, seq_j
+        cdef double local_result[3]
+        cdef int nthreads = openmp.omp_get_max_threads() if num_threads == 0 else num_threads
+
+        try:
+            # set pointers to seqs
+            for i in range(n):
+                c_seqs[i] = seqs_bytes[i]
+
+            for k in prange(n_pairs, nogil=True, num_threads=nthreads, schedule='guided'):
+                seq_i = <int>(k/n)  # integer division, as both int
+                seq_j = <int>(k%n)  # modulo 
+                
+                cpyopa.EstimatePam(
+                        c_seqs[seq_i],
+                        c_seqs[seq_j],
+                        seq_len,
+                        c_dayMatrices,
+                        dms_len,
+                        logpam_ptr,
+                        local_result
+                        )
+                score_ptr[k] = local_result[0]
+                dist_ptr[k] = local_result[1]
+                var_ptr[k] = local_result[2]
+        finally:
+            free(c_seqs)
+                
+        return (score, dist, var)
 
     def free(self):
         if self._c_dayMatrices is not NULL:

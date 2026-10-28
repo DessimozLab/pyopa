@@ -17,7 +17,6 @@
  #  (ML Distance and Variance, Mar/2006)
  #							*/
 
-double NorFre[MAXMUTDIM];
 int DelFrom[MAXSEQLEN+1];
 
 #define ABS(a)	((a)>=0?(a):-(a))
@@ -330,10 +329,12 @@ int FindMaxPamR(int x[], double f[], int n, double *res, Counters *cnt,
 static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 		int DMSLen, double *Sim, double *PamNumber, double *PamVariance,
 		double* logPAM1) {
-	double /*logPAM1[MAXMUTDIM * MAXMUTDIM],*/Mp[MAXMUTDIM * MAXMUTDIM],
-			logMp[MAXMUTDIM * MAXMUTDIM], log2Mp[MAXMUTDIM * MAXMUTDIM],
-			t1[MAXMUTDIM * MAXMUTDIM], t2[MAXMUTDIM * MAXMUTDIM], t3[MAXMUTDIM
-					* MAXMUTDIM], t4[MAXMUTDIM * MAXMUTDIM];
+	/* sized for the n=26 used below rather than MAXMUTDIM, to keep the stack
+	 small enough for threads (e.g. musl's default 128KB thread stack) */
+	double /*logPAM1[MAXMUTDIM * MAXMUTDIM],*/Mp[MATRIX_DIM * MATRIX_DIM],
+			logMp[MATRIX_DIM * MATRIX_DIM], log2Mp[MATRIX_DIM * MATRIX_DIM],
+			t1[MATRIX_DIM * MATRIX_DIM], t2[MATRIX_DIM * MATRIX_DIM], t3[MATRIX_DIM
+					* MATRIX_DIM], t4[MATRIX_DIM * MATRIX_DIM];
 	double /*cj,*/FD1d, logL1, logL2, p, incr, x1;
 	int f21, i, iter, j, n, n2;
 	/*ALGEB s;
@@ -485,8 +486,8 @@ static void ComputeVarianceML(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 static void ComputeSmallVariance(Counters *cnt, int dmsnumb, DayMatrix *DMS,
 		double *Sim, double *PamNumber, double *PamVariance, double* logPAM1) {
 	double a1, a2, b0, t1, t2, t3, t4, t5, ave, var;
-	double /*L1[MAXMUTDIM * MAXMUTDIM],*/L2[MAXMUTDIM * MAXMUTDIM], L3[MAXMUTDIM
-			* MAXMUTDIM];
+	double /*L1[MAXMUTDIM * MAXMUTDIM],*/L2[MATRIX_DIM * MATRIX_DIM], L3[MATRIX_DIM
+			* MATRIX_DIM];
 	int i, ij, n;
 	double* L1 = logPAM1;
 	/*ALGEB p;*/
@@ -559,9 +560,15 @@ void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 		double* logPAM1, double* result)
 
 {
-	Counters cnt;
+	/* Counters is ~500KB, too large for the stack of a thread */
+	Counters *cnt = (Counters*) malloc(sizeof(Counters));
 	int dmsnumb;
 	double Sim, PamNumber, PamVariance;
+
+	if (cnt == NULL) {
+		result[0] = result[1] = result[2] = NAN;
+		return;
+	}
 
 	/* Increase the length to be compatible with the core */
 	DMSLen += 1;
@@ -574,14 +581,15 @@ void EstimatePam(char* o1, char* o2, int len, DayMatrix* DMS, int DMSLen,
 	 New4(EXPSEQ, Newint(0), Newint(250),
 	 Newint(62500))));*/
 	/*DMS = (DayMatrix**) (t[3][1]);*/
-	FindMaxPam(o1, o2, len, DMS, DMSLen, &cnt, &dmsnumb, &Sim);
+	FindMaxPam(o1, o2, len, DMS, DMSLen, cnt, &dmsnumb, &Sim);
 	if (dmsnumb <= 1) {
-		ComputeSmallVariance(&cnt, dmsnumb, DMS, &Sim, &PamNumber, &PamVariance,
+		ComputeSmallVariance(cnt, dmsnumb, DMS, &Sim, &PamNumber, &PamVariance,
 				logPAM1);
 	} else {
-		ComputeVarianceML(&cnt, dmsnumb, DMS, DMSLen, &Sim, &PamNumber,
+		ComputeVarianceML(cnt, dmsnumb, DMS, DMSLen, &Sim, &PamNumber,
 				&PamVariance, logPAM1);
 	}
+	free(cnt);
 
 	result[0] = Sim;
 	result[1] = PamNumber;
@@ -643,8 +651,10 @@ void CreateOrigDayMatrix(double* log_pam1, double PamNum, double* new_matrix)
 
 {
 	/*double AA[MAXMUTDIM][MAXMUTDIM], norm, RelMut[MAXMUTDIM], RowsA[MAXMUTDIM];*/
-	double /*a, b, lambda,*/M[MAXMUTDIM * MAXMUTDIM], MP[MAXMUTDIM * MAXMUTDIM],
-			t1[MAXMUTDIM * MAXMUTDIM], t2[MAXMUTDIM * MAXMUTDIM];
+	/* sized for the 26x26 matrices used below rather than MAXMUTDIM */
+	double /*a, b, lambda,*/M[MATRIX_DIM * MATRIX_DIM], MP[MATRIX_DIM * MATRIX_DIM],
+			t1[MATRIX_DIM * MATRIX_DIM], t2[MATRIX_DIM * MATRIX_DIM];
+	double NorFre[MATRIX_DIM];
 	double /*k, */pam1, pam2, tot, /*v, */maxs, t;
 	/*ALGEB p, res, logpam;*/
 	int i, j, n;

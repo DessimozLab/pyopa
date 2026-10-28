@@ -34,7 +34,7 @@ jobs:
         with:
           submodules: true
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.2
 
       # build options are configured in [tool.cibuildwheel] in pyproject.toml
       - name: Build wheels
@@ -53,7 +53,7 @@ jobs:
         with:
           submodules: true
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.2
 
       - name: Build sdist
         run: uv build --sdist

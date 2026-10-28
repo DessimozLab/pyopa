@@ -80,6 +80,15 @@ class UtilTest(unittest.TestCase):
                 self.assertAlmostEqual(rev[0], score, delta=abs(score) * 1e-10)
                 self.assertEqual((min1, min2), (max1 - rev[1], max2 - rev[2]))
 
+    def test_ranges_near_tie(self):
+        # with A/A almost 0, the alignment without the leading A(s) scores only marginally
+        # less than the full one; the reverse pass must not stop at that shorter alignment
+        env = pyopa.create_environment(-2, -1, 20, [[1e-11, -1], [-1, 1]], 'AB')
+        for s in ['AB', 'ABBBBB', 'AAB', 'A' + 'B' * 40]:
+            seq = pyopa.Sequence(s)
+            score, max1, max2, min1, min2 = pyopa.align_double(seq, seq, env, False, False, True)
+            self.assertEqual((min1, min2, max1, max2), (0, 0, len(s) - 1, len(s) - 1), msg=s)
+
     def test_create_env(self):
         simple_score = 3.78
         simple_scores = [[simple_score]]

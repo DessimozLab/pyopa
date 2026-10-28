@@ -355,10 +355,13 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
                 profile1r.create_profile_double(s1r, env.float64_matrix)
 
                 # the reverse alignment reaches the score of the forward one exactly at the
-                # start of the alignment, so we can stop there instead of scanning the whole prefix
-                tolerance = abs(res[0])*1e-10
-                reversed = profile1r.align_double(s2r, env, threshold=res[0] - tolerance)
-                assert( abs(res[0]-reversed[0]) <= tolerance )
+                # start of the alignment, so we can stop there instead of scanning the whole prefix.
+                # Stop only on reaching the forward score itself (the kernel stops when the score
+                # exceeds the threshold): with any tolerance, a slightly lower scoring, shorter
+                # alignment would end the scan too early. If rounding keeps the reverse score
+                # below the forward one, the whole prefix is scanned as before.
+                reversed = profile1r.align_double(s2r, env, threshold=np.nextafter(res[0], -np.inf))
+                assert( abs(res[0]-reversed[0]) <= abs(res[0])*1e-10 )
 
                 res.extend([res[1] - reversed[1], res[2] - reversed[2]])
 

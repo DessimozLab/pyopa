@@ -1,23 +1,15 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
 import os
 
+# project metadata lives in pyproject.toml; this file only defines the C extension
 package_name = 'pyopa'
 
 c_dir = 'c_source/'
 c_sources = ['Python_extension.c', 'DynProgr_sse_short.c', 'DynProgr_sse_byte.c',
              'DynProgr_scalar.c', 'EstimatePam.c', 'Page_size.c', 'DynProgr_sse_double.c']
-
-__version__ = "Undefined"
-for line in open('{}/__init__.py'.format(package_name)):
-    if line.startswith('__version__'):
-        exec(line.strip())
-
-# Get the long description from the README file
-with open('README.rst') as f:
-    long_description = f.read()
 
 setup(
     ext_modules=cythonize([
@@ -30,32 +22,5 @@ setup(
         )],
         compiler_directives={"language_level": "3"},
     ),
-    name=package_name,
-    version=__version__,
-    author='OMA Browser',
-    author_email='contact@omabrowser.org',
-    install_requires=['numpy'],
-    packages=find_packages(), 
     include_package_data=True,
-    license='MPL 2.0',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Intended Audience :: Developers',
-        'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
-        'Programming Language :: Python :: 3.12',
-        'Programming Language :: Python :: 3.13',
-    ],
-    keywords='sequence alignments Smith-Waterman Needleman-Wunsch dynamic programming bioinformatics',
-    description='PyOPA - optimal pairwise sequence alignments',
-    long_description=long_description,
-    url='http://omabrowser.org/',
 )

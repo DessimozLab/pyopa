@@ -1,8 +1,57 @@
 [build-system]
 requires = [
-    # setuptools, wheel and Cython are needed for the setup.py based build
-    "setuptools>=59.2.0",
-    "wheel>=0.37.0",
+    # setuptools and Cython are needed for the setup.py based build of the extension
+    "setuptools>=77.0",
     "Cython>=3.0",
-    "numpy",
+    # building against numpy 2.x yields wheels compatible with numpy 1.x and 2.x
+    "numpy>=2.0",
 ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyopa"
+dynamic = ["version"]
+description = "PyOPA - optimal pairwise sequence alignments"
+readme = "README.rst"
+license = "MPL-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "OMA Browser", email = "contact@omabrowser.org" }]
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+keywords = ["sequence alignments", "Smith-Waterman", "Needleman-Wunsch", "dynamic programming", "bioinformatics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+]
+
+[project.urls]
+Homepage = "https://omabrowser.org/"
+Source = "https://github.com/DessimozLab/pyopa"
+
+[dependency-groups]
+test = ["pytest"]
+lint = ["flake8"]
+dev = [{ include-group = "test" }, { include-group = "lint" }]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyopa.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["pyopa*"]
+
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+build-verbosity = 1
+# the Cython extension is not declared free-threading compatible yet
+skip = ["cp3*t-*"]
+test-groups = ["test"]
+test-command = "pytest -v {project}/test"

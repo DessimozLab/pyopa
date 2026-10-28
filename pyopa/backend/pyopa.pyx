@@ -679,14 +679,26 @@ class AlignmentEnvironment:
         """
 
         factor = self.byte_factor()
-        self.int8_matrix = np.vectorize(lambda x: scale_to_byte(x, factor))(self.float64_matrix ).astype(np.int8)
+        self.int8_matrix = self._scale_matrix(factor, -128, 127, np.int8, scale_to_byte)
         self.int8_gap_open = scale_to_byte(self.gap_open, factor)
         self.int8_gap_ext = scale_to_byte(self.gap_ext, factor)
 
         factor = self.short_factor()
-        self.int16_matrix = np.vectorize(lambda x: scale_to_short(x, factor))(self.float64_matrix ).astype(np.int16)
+        self.int16_matrix = self._scale_matrix(factor, -32768, 32767, np.int16, scale_to_short)
         self.int16_gap_open = scale_to_short(self.gap_open, factor)
         self.int16_gap_ext = scale_to_short(self.gap_ext, factor)
+
+    def _scale_matrix(self, factor, min_val, max_val, dtype, scale_func):
+        """
+        Vectorized version of applying scale_func (scale_to_byte or scale_to_short) to every
+        entry of the double matrix, with the same rounding, underflow and overflow behaviour.
+        """
+        scaled = self.float64_matrix * factor
+        overflow = scaled > max_val
+        if overflow.any():
+            # raises the same OverflowError as the scalar version
+            scale_func(self.float64_matrix[overflow][0], factor)
+        return np.ceil(np.maximum(scaled, min_val)).astype(dtype)
 
     #calculates the byte scaling factor
     def byte_factor(self):

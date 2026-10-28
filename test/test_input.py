@@ -1,4 +1,5 @@
 import pyopa
+import numpy
 import threading
 import unittest
 import os
@@ -41,6 +42,27 @@ class UtilTest(unittest.TestCase):
 
         self.assertRaises(OverflowError, pyopa.scale_to_byte, 3, 50)
         self.assertRaises(OverflowError, pyopa.scale_to_short, 3, 15000)
+
+    def test_scaled_matrices(self):
+        # the vectorized scaling must match the scalar functions entry by entry
+        for env in self.envs[::25]:
+            for threshold in (40.0, 85.0, 300.0):
+                env.threshold = threshold
+                env.create_scaled_matrices()
+                byte_factor, short_factor = env.byte_factor(), env.short_factor()
+                for i in range(26):
+                    for j in range(26):
+                        val = env.float64_matrix[i][j]
+                        self.assertEqual(env.int8_matrix[i][j], pyopa.scale_to_byte(val, byte_factor))
+                        self.assertEqual(env.int16_matrix[i][j], pyopa.scale_to_short(val, short_factor))
+                self.assertEqual(env.int8_matrix.dtype, numpy.int8)
+                self.assertEqual(env.int16_matrix.dtype, numpy.int16)
+
+        # a threshold this low makes the factor so large that the matrix overflows
+        env = self.envs[515]
+        env.threshold = 1.0
+        self.assertRaises(OverflowError, env.create_scaled_matrices)
+        env.threshold = 85.0
 
     def test_create_env(self):
         simple_score = 3.78

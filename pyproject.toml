@@ -55,3 +55,12 @@ build-verbosity = 1
 skip = ["cp3*t-*"]
 test-groups = ["test"]
 test-command = "pytest -v {project}/test"
+# fail instead of silently building wheels without parallel support
+environment = { PYOPA_REQUIRE_OPENMP = "1" }
+
+[tool.cibuildwheel.macos]
+# libomp built for the wheel's MACOSX_DEPLOYMENT_TARGET, bundled by delocate
+before-all = "bash tools/build_libomp_macos.sh /tmp/libomp"
+# set explicitly: before-all otherwise gets MACOSX_DEPLOYMENT_TARGET=10.9 from
+# cibuildwheel, but libomp needs >= 10.15 (and arm64 needs >= 11.0 anyway)
+environment = { PYOPA_REQUIRE_OPENMP = "1", OPENMP_PREFIX = "/tmp/libomp", MACOSX_DEPLOYMENT_TARGET = "11.0" }

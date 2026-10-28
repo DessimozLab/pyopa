@@ -1,4 +1,5 @@
 import pyopa
+import itertools
 import numpy
 import threading
 import unittest
@@ -63,6 +64,21 @@ class UtilTest(unittest.TestCase):
         env.threshold = 1.0
         self.assertRaises(OverflowError, env.create_scaled_matrices)
         env.threshold = 85.0
+
+    def test_ranges_match_full_reverse_scan(self):
+        # the reverse pass for the ranges stops early once it reaches the forward score;
+        # it must find the same start as scanning the whole reversed prefix
+        seqs = [self.s1, self.s2, pyopa.Sequence(self.s1.convert_readable()[300:900]),
+                pyopa.Sequence(self.s2.convert_readable()[100:400])]
+        for env in self.envs[::200]:
+            for a, b in itertools.permutations(seqs, 2):
+                score, max1, max2, min1, min2 = pyopa.align_double(a, b, env, False, False, True)
+
+                profile = pyopa.AlignmentProfile()
+                profile.create_profile_double(pyopa.Sequence(a.s_norm[max1::-1], True), env.float64_matrix)
+                rev = profile.align_double(pyopa.Sequence(b.s_norm[max2::-1], True), env)
+                self.assertAlmostEqual(rev[0], score, delta=abs(score) * 1e-10)
+                self.assertEqual((min1, min2), (max1 - rev[1], max2 - rev[2]))
 
     def test_create_env(self):
         simple_score = 3.78

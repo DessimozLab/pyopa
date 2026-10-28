@@ -354,8 +354,11 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
                 profile1r = AlignmentProfile()
                 profile1r.create_profile_double(s1r, env.float64_matrix)
 
-                reversed = profile1r.align_double(s2r, env, stop_at_threshold)
-                assert( abs(res[0]-reversed[0]) <= abs(res[0])*1e-10 )
+                # the reverse alignment reaches the score of the forward one exactly at the
+                # start of the alignment, so we can stop there instead of scanning the whole prefix
+                tolerance = abs(res[0])*1e-10
+                reversed = profile1r.align_double(s2r, env, threshold=res[0] - tolerance)
+                assert( abs(res[0]-reversed[0]) <= tolerance )
 
                 res.extend([res[1] - reversed[1], res[2] - reversed[2]])
 
@@ -609,13 +612,16 @@ cdef class AlignmentProfile:
         return scale_back(ret, env.short_factor())
 
 
-    cpdef align_double(self, s2, env, stop_at_threshold=False):
+    cpdef align_double(self, s2, env, stop_at_threshold=False, threshold=None):
         """
         Aligns the sequence s2 with the gap costs defined in the given AlignmentEnvironment
         to the profile by using double SSE alignment.
 
         :param s2: the sequence which we would like to align to the profile
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
+        :param stop_at_threshold: if True, we terminate as soon as the score exceeds env.threshold
+        :param threshold: if given, we terminate as soon as the score exceeds this value (overrides
+         stop_at_threshold)
         :return: the result of the double alignment
         """
         cdef int max1[1]
@@ -627,12 +633,10 @@ cdef class AlignmentProfile:
         ret = []
         s2 = s2.s_norm
 
-        if not stop_at_threshold:
-            res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
-                                           env.gap_open, env.gap_ext, sys.float_info.max, max1, max2)
-        else:
-            res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
-                                           env.gap_open, env.gap_ext, env.threshold, max1, max2)
+        if threshold is None:
+            threshold = env.threshold if stop_at_threshold else sys.float_info.max
+        res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
+                                       env.gap_open, env.gap_ext, threshold, max1, max2)
 
         ret.append(res)
         ret.append(max1[0] - 1)

@@ -712,6 +712,8 @@ cdef class MutipleAlEnv:
 
     cdef cpyopa.DayMatrix* _c_dayMatrices
     cdef int dms_len
+    # number of estimate_many_pam calls currently using _c_dayMatrices without the GIL
+    cdef int _active_estimates
     cdef log_pam1
 
     def __init__(self, envs, log_pam1):
@@ -720,6 +722,7 @@ cdef class MutipleAlEnv:
 
     def __cinit__(self):
         self._c_dayMatrices = NULL
+        self._active_estimates = 0
 
     def __dealloc__(self):
         self.free()
@@ -746,6 +749,9 @@ cdef class MutipleAlEnv:
         if len(s1) != len(s2):
             raise ValueError('The length of s1 and s2 must be equal!')
 
+        if self._c_dayMatrices is NULL:
+            raise RuntimeError('The day matrices have been freed')
+
         cdef double result[3]
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
 
@@ -769,7 +775,10 @@ cdef class MutipleAlEnv:
         :param num_threads: number of threads to use, 0 lets OpenMP decide
         :return: tuple of numpy arrays (score, pam distance, variance) of length n*(n-1)/2
         """
-        cdef int n = len(seqs)
+        if self._c_dayMatrices is NULL:
+            raise RuntimeError('The day matrices have been freed')
+
+        cdef Py_ssize_t n = len(seqs)
         if n < 2:
             raise ValueError('Must pass atleast 2 sequences!')
 
@@ -781,7 +790,7 @@ cdef class MutipleAlEnv:
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] logpam = self.log_pam1.float64_matrix
         cdef double* logpam_ptr = <double*> logpam.data
 
-        n_pairs = (n**2 - n) // 2
+        cdef Py_ssize_t n_pairs = n * (n - 1) // 2
         # one row of (score, dist, var) per pair, so every pair writes to its own memory
         cdef np.ndarray[np.double_t, ndim=2, mode="c"] result = np.empty(shape=(n_pairs, 3), dtype=np.float64)
         cdef double* result_ptr = <double*> result.data
@@ -789,14 +798,17 @@ cdef class MutipleAlEnv:
         cdef cpyopa.DayMatrix* c_dayMatrices = self._c_dayMatrices
         cdef int dms_len = self.dms_len
         
+        cdef int nthreads = num_threads
         seqs_bytes = [s.s_norm.encode('utf-8') for s in seqs]
         cdef char** c_seqs = <char**> malloc(n*sizeof(char*))
         if not c_seqs:
             raise MemoryError("Failed to allocate sequence pointers")
 
         cdef Py_ssize_t k, seq_i, seq_j
-        cdef int nthreads = num_threads
 
+        # keeps free() and create_day_matrices() from releasing c_dayMatrices
+        # while other Python threads run during the nogil section below
+        self._active_estimates += 1
         try:
             # set pointers to seqs
             for i in range(n):
@@ -817,6 +829,7 @@ cdef class MutipleAlEnv:
                             &result_ptr[3 * k]
                             )
         finally:
+            self._active_estimates -= 1
             free(c_seqs)
 
         return (np.ascontiguousarray(result[:, 0]),
@@ -824,6 +837,9 @@ cdef class MutipleAlEnv:
                 np.ascontiguousarray(result[:, 2]))
 
     def free(self):
+        if self._active_estimates > 0:
+            raise RuntimeError('Cannot free the day matrices while estimate_many_pam is running')
         if self._c_dayMatrices is not NULL:
             cpyopa.freeDayMatrices(self._c_dayMatrices, self.dms_len)
+            self._c_dayMatrices = NULL
 

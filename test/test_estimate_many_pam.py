@@ -73,6 +73,14 @@ class EstimateManyPamTest(unittest.TestCase):
         self.assertRaises(ValueError, self.dms.estimate_many_pam, self.seqs[:1])
         shorter = pyopa.Sequence(self.seqs[1].convert_readable()[:-1])
         self.assertRaises(ValueError, self.dms.estimate_many_pam, [self.seqs[0], shorter])
+        self.assertRaises(TypeError, self.dms.estimate_many_pam, self.seqs, num_threads=None)
+
+    def test_use_after_free(self):
+        self.dms.free()
+        # freeing again (also implicitly on garbage collection) must not double free
+        self.dms.free()
+        self.assertRaises(RuntimeError, self.dms.estimate_pam, self.seqs[0], self.seqs[1])
+        self.assertRaises(RuntimeError, self.dms.estimate_many_pam, self.seqs)
 
 
 if __name__ == '__main__':

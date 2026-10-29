@@ -120,7 +120,7 @@ EXPORT double swps3_alignmentByteSSE_lin(ProfileByte * query, const char * db,
 
 	__m128i vMinimums = _mm_set1_epi32(0);
 
-	__m128i vDelFixed = _mm_set1_epi8(-options->gapOpen);
+	__m128i vDelFixed = _mm_set1_epi8((char) -options->gapOpen);
 	__m128i vBias = _mm_set1_epi8(query->bias);
 
 	__m128i vMaxScore = vMinimums; /* vMaxScore = [0,0] */
@@ -265,8 +265,8 @@ EXPORT double swps3_alignmentByteSSE(ProfileByte * query, const char * db,
 
 	__m128i vMinimums = _mm_set1_epi32(0);
 
-	__m128i vDelIncr = _mm_set1_epi8(-options->gapExt);
-	__m128i vDelFixed = _mm_set1_epi8(-options->gapOpen);
+	__m128i vDelIncr = _mm_set1_epi8((char) -options->gapExt);
+	__m128i vDelFixed = _mm_set1_epi8((char) -options->gapOpen);
 	__m128i vBias = _mm_set1_epi8(query->bias);
 
 	__m128i vMaxScore = vMinimums; /* vMaxScore = [0,0] */

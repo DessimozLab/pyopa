@@ -102,7 +102,7 @@ EXPORT double swps3_alignmentShortSSE_lin(ProfileShort * query, const char * db,
 
 	__m128i vMinimums = _mm_set1_epi16(0x8000);
 
-	__m128i vDelFixed = _mm_set1_epi16(options->gapOpen);
+	__m128i vDelFixed = _mm_set1_epi16((short) options->gapOpen);
 	__m128i vBias = _mm_set1_epi16(query->bias);
 
 	__m128i vMaxScore = vMinimums; /* vMaxScore = [0,0] */
@@ -254,8 +254,8 @@ EXPORT double swps3_alignmentShortSSE(ProfileShort * query, const char * db,
 
 	__m128i vMinimums = _mm_set1_epi16(0x8000);
 
-	__m128i vDelIncr = _mm_set1_epi16(options->gapExt);
-	__m128i vDelFixed = _mm_set1_epi16(options->gapOpen);
+	__m128i vDelIncr = _mm_set1_epi16((short) options->gapExt);
+	__m128i vDelFixed = _mm_set1_epi16((short) options->gapOpen);
 	__m128i vBias = _mm_set1_epi16(query->bias);
 
 	__m128i vMaxScore = vMinimums; /* vMaxScore = [0,0] */

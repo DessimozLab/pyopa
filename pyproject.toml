@@ -52,8 +52,8 @@ include = ["pyopa*"]
 build-frontend = "build[uv]"
 build-verbosity = 1
 # the Cython extension is not declared free-threading compatible yet;
-# numpy has no windows arm64 wheels for Python 3.10
-skip = ["cp3*t-*", "cp310-win_arm64"]
+# no 32-bit windows wheels; numpy has no windows arm64 wheels for Python 3.10
+skip = ["cp3*t-*", "*-win32", "cp310-win_arm64"]
 test-groups = ["test"]
 test-command = "pytest -v {project}/test"
 # fail instead of silently building wheels without parallel support

@@ -34,8 +34,8 @@ void debug_alignment(char* name, void* profile, const char* s2, int ls2,
 		Options* options) {
 	char* dns2 = denormalize(s2, ls2);
 	printf(
-			"Aligning %s: profile = %lu, s2 = %s, len(s2) = %d, gapOpen = %f, gapExt = %f, threshold = %f\n",
-			name, (unsigned long) profile, dns2, ls2, options->gapOpen,
+			"Aligning %s: profile = %p, s2 = %s, len(s2) = %d, gapOpen = %f, gapExt = %f, threshold = %f\n",
+			name, profile, dns2, ls2, options->gapOpen,
 			options->gapExt, options->threshold);
 	free(dns2);
 }
@@ -46,8 +46,8 @@ void debug_profile(char* name, void* pb, const char* q, int queryLen,
 	int i, j;
 
 	printf(
-			"Successfully created %s profile at %lu from query = %s, len(query) = %d\n",
-			name, (unsigned long) pb, query, queryLen);
+			"Successfully created %s profile at %p from query = %s, len(query) = %d\n",
+			name, pb, query, queryLen);
 	printf("The matrix used for the %s profile: \n", name);
 
 	for (i = 0; i < 26; ++i) {
@@ -114,13 +114,13 @@ ProfileShort* c_create_profile_short_sse_local(const char* query, int queryLen,
 
 void c_free_profile_byte_sse_local(ProfileByte* profile) {
 #ifdef PY_DEBUG
-	printf("Freeing BYTE profile at %lu\n", (unsigned long)profile);
+	printf("Freeing BYTE profile at %p\n", (void*) profile);
 #endif
 	swps3_freeProfileByteSSE(profile);
 }
 void c_free_profile_short_sse_local(ProfileShort* profile) {
 #ifdef PY_DEBUG
-	printf("Freeing SHORT profile at %lu\n", (unsigned long)profile);
+	printf("Freeing SHORT profile at %p\n", (void*) profile);
 #endif
 	swps3_freeProfileShortSSE(profile);
 }
@@ -189,7 +189,8 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 
 	/* equal length, try to see if there is a match without deletions */
 	if (len1 == len2 && s1 != s2) {
-		for (i = tot = 0; i < len1; i++)
+		tot = 0;
+		for (i = 0; i < len1; i++)
 			tot += matrix[s1[i] * MATRIX_DIM + s2[i]];
 		if (tot >= escore) {
 			for (i = 0; i < len1; i++) {
@@ -216,14 +217,14 @@ int c_align_strings(double* matrix, char *s1, int len1, char *s2, int len2,
 
 	/* reverse strings */
 	if (s1 - s2 >= 0 && s2 + len2 - s1 > 0) {
-		j = MMAX(s1 - s2 + len1, len2);
+		j = (int) MMAX(s1 - s2 + len1, len2);
 		tprs1 = (char*) malloc(j * sizeof(char));
 		for (i = 0; i < j; i++)
 			tprs1[j - 1 - i] = s2[i];
 		prs1 = tprs1 + (j + s2 - s1 - len1);
 		prs2 = tprs1 + (j - len2);
 	} else if (s2 - s1 >= 0 && s1 + len1 - s2 > 0) {
-		j = MMAX(s2 - s1 + len2, len1);
+		j = (int) MMAX(s2 - s1 + len2, len1);
 		tprs1 = (char*) malloc(j * sizeof(char));
 		for (i = 0; i < j; i++)
 			tprs1[j - 1 - i] = s1[i];

@@ -8,3 +8,4 @@ graft c_source/simde
 include pyopa/backend/cpyopa.pxd pyopa/backend/pyopa.pyx
 include pyopa/matrices/*
 include pyopa/matrices/json/*
+include tools/build_libomp_macos.sh

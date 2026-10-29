@@ -36,7 +36,12 @@ jobs:
         uvx flake8 . --extend-exclude=.venv --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Source distribution
       run: uv build --sdist
+    - name: Install OpenMP runtime
+      if: runner.os == 'macOS'
+      run: brew install libomp
     - name: Installation
+      env:
+        PYOPA_REQUIRE_OPENMP: "1"
       run: |
         uv pip install -v dist/*.tar.gz
         uv pip install --group test

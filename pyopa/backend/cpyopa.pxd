@@ -37,6 +37,20 @@ cdef extern from "EstimatePam.h":
     void CreateOrigDayMatrix(double* log_pam1, double pam, double* new_matrix)
 
 
+cdef extern from "EstimatePamEigen.h":
+    ctypedef struct PamModel:
+        int nlam
+        double lam[26]
+        double V[676]
+        double W[676]
+        double L1[676]
+        double L2[676]
+        double L3[676]
+
+    void EstimatePamEigen(const char* o1, const char* o2, int len, DayMatrix* DMS, int DMSLen,
+            const PamModel* model, double* result) nogil
+
+
 cdef extern from "DynProgr_sse_double.h":
     ctypedef struct ProfileDouble:
         pass

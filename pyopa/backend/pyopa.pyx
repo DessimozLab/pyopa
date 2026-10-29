@@ -734,10 +734,60 @@ cdef class MutipleAlEnv:
     # number of estimate_many_pam calls currently using _c_dayMatrices without the GIL
     cdef int _active_estimates
     cdef log_pam1
+    cdef cpyopa.PamModel _pam_model
+    # whether estimate_pam can use the eigendecomposition in _pam_model
+    cdef bint _use_eigen
 
     def __init__(self, envs, log_pam1):
         self.create_day_matrices(envs)
         self.log_pam1 = log_pam1
+        self._use_eigen = self._create_pam_model(log_pam1.float64_matrix)
+
+    def _create_pam_model(self, Q):
+        """
+        Computes the eigendecomposition logPAM1 = V diag(lam) W, W = V^-1, used by
+        EstimatePamEigen. logPAM1 is the rate matrix of a reversible process, so it is
+        symmetrized with its stationary distribution and decomposed with eigh, restricted
+        to the symbols for which it has non-zero rows/columns.
+
+        :return: False if logPAM1 is not reversible, in which case estimate_pam falls back
+            to the slower EstimatePam
+        """
+        Q = np.asarray(Q, dtype=np.float64)
+        active = np.flatnonzero(np.abs(Q).sum(axis=0) + np.abs(Q).sum(axis=1) > 0)
+        if len(active) == 0:
+            return False
+        A = Q[np.ix_(active, active)]
+        # stationary distribution pi: A pi = 0
+        w, v = np.linalg.eig(A)
+        pi = np.real(v[:, np.argmin(np.abs(w))])
+        pi /= pi.sum()
+        if not np.all(pi > 0):
+            return False
+        s = np.sqrt(pi)
+        S = A * s[np.newaxis, :] / s[:, np.newaxis]
+        # S is symmetric iff logPAM1 is reversible (detailed balance)
+        if not np.allclose(S, S.T, rtol=1e-8, atol=1e-12 * np.abs(S).max()):
+            return False
+        lam, U = np.linalg.eigh((S + S.T) / 2)
+
+        V = np.zeros((26, 26))
+        W = np.zeros((26, 26))
+        V[np.ix_(active, np.arange(len(active)))] = U * s[:, np.newaxis]
+        W[np.ix_(np.arange(len(active)), active)] = U.T / s[np.newaxis, :]
+        Q2 = Q @ Q
+        Q3 = Q @ Q2
+
+        self._pam_model.nlam = len(active)
+        for i in range(26):
+            self._pam_model.lam[i] = lam[i] if i < len(active) else 0.0
+            for j in range(26):
+                self._pam_model.V[i * 26 + j] = V[i, j]
+                self._pam_model.W[i * 26 + j] = W[i, j]
+                self._pam_model.L1[i * 26 + j] = Q[i, j]
+                self._pam_model.L2[i * 26 + j] = Q2[i, j]
+                self._pam_model.L3[i * 26 + j] = Q3[i, j]
+        return True
 
     def __cinit__(self):
         self._c_dayMatrices = NULL
@@ -765,6 +815,31 @@ cdef class MutipleAlEnv:
                                                       <double*> pam_dist.data, <long long*> matrices.data, self.dms_len)
 
     def estimate_pam(self, s1, s2):
+        """
+        Estimates the PAM distance of two aligned sequences.
+
+        :return: list of (score, pam distance, variance)
+        """
+        if not self._use_eigen:
+            return self._estimate_pam_reference(s1, s2)
+
+        if len(s1) != len(s2):
+            raise ValueError('The length of s1 and s2 must be equal!')
+
+        if self._c_dayMatrices is NULL:
+            raise RuntimeError('The day matrices have been freed')
+
+        cdef double result[3]
+        cpyopa.EstimatePamEigen(s1.s_norm.encode('utf-8'), s2.s_norm.encode('utf-8'), len(s1),
+                                self._c_dayMatrices, self.dms_len, &self._pam_model, result)
+        return [result[0], result[1], result[2]]
+
+    def _estimate_pam_reference(self, s1, s2):
+        """
+        estimate_pam with the original EstimatePam, which computes matrix exponentials
+        of logPAM1 instead of using its eigendecomposition. Used as a fallback if logPAM1
+        is not reversible, and as a reference in tests.
+        """
         if len(s1) != len(s2):
             raise ValueError('The length of s1 and s2 must be equal!')
 
@@ -776,12 +851,7 @@ cdef class MutipleAlEnv:
 
         cpyopa.EstimatePam(s1.s_norm.encode('utf-8'), s2.s_norm.encode('utf-8'), len(s1),
                           self._c_dayMatrices, self.dms_len, <double*> logpam.data, result)
-        ret = [0.0] * 3
-        ret[0] = result[0]
-        ret[1] = result[1]
-        ret[2] = result[2]
-
-        return ret
+        return [result[0], result[1], result[2]]
 
     @cython.cdivision(True)
     def estimate_many_pam(self, seqs, num_threads=0):
@@ -816,6 +886,8 @@ cdef class MutipleAlEnv:
 
         cdef cpyopa.DayMatrix* c_dayMatrices = self._c_dayMatrices
         cdef int dms_len = self.dms_len
+        cdef cpyopa.PamModel* pam_model = &self._pam_model
+        cdef bint use_eigen = self._use_eigen
         
         cdef int nthreads = num_threads
         seqs_bytes = [s.s_norm.encode('utf-8') for s in seqs]
@@ -838,15 +910,26 @@ cdef class MutipleAlEnv:
                 for seq_j in range(seq_i + 1, n):
                     # condensed index of pair (seq_i, seq_j)
                     k = seq_i * n - seq_i * (seq_i + 1) / 2 + seq_j - seq_i - 1
-                    cpyopa.EstimatePam(
-                            c_seqs[seq_i],
-                            c_seqs[seq_j],
-                            seq_len,
-                            c_dayMatrices,
-                            dms_len,
-                            logpam_ptr,
-                            &result_ptr[3 * k]
-                            )
+                    if use_eigen:
+                        cpyopa.EstimatePamEigen(
+                                c_seqs[seq_i],
+                                c_seqs[seq_j],
+                                seq_len,
+                                c_dayMatrices,
+                                dms_len,
+                                pam_model,
+                                &result_ptr[3 * k]
+                                )
+                    else:
+                        cpyopa.EstimatePam(
+                                c_seqs[seq_i],
+                                c_seqs[seq_j],
+                                seq_len,
+                                c_dayMatrices,
+                                dms_len,
+                                logpam_ptr,
+                                &result_ptr[3 * k]
+                                )
         finally:
             self._active_estimates -= 1
             free(c_seqs)

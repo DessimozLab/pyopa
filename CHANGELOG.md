@@ -20,6 +20,13 @@ changes are released with the following version.
 - Requires Python 3.10 or newer; no more wheels for Python 3.6 to 3.9.
   Package metadata moved from `setup.py` to `pyproject.toml`
   ([#27](https://github.com/DessimozLab/pyopa/pull/27)).
+- `MutipleAlEnv.estimate_pam` and `estimate_many_pam` are about 30 times
+  faster: they evaluate `exp(pam * logPAM1)` from an eigendecomposition
+  of logPAM1, only for the pairs of symbols in the alignment. Scores and
+  PAM distances are unchanged, variances agree to about 1e-9 relative.
+  If a custom logPAM1 is not reversible, the original implementation is
+  used. logPAM1 is now read only when the `MutipleAlEnv` is created
+  ([#30](https://github.com/DessimozLab/pyopa/pull/30)).
 - Wheels are built against numpy 2.x and work with numpy 1.x and 2.x
   ([#27](https://github.com/DessimozLab/pyopa/pull/27)).
 - The extension is built with OpenMP where the compiler supports it, and

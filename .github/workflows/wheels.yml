@@ -26,8 +26,8 @@ jobs:
           - ubuntu-24.04-arm    # linux aarch64
           - macos-15-intel      # macos x86_64
           - macos-latest        # macos arm64
-          # tests are failing for now on windows.
-          # - windows-latest
+          - windows-latest      # windows x86_64
+          - windows-11-arm      # windows arm64
 
     steps:
       - uses: actions/checkout@v7

@@ -1,4 +1,6 @@
 import pyopa
+import itertools
+import numpy
 import threading
 import unittest
 import os
@@ -41,6 +43,51 @@ class UtilTest(unittest.TestCase):
 
         self.assertRaises(OverflowError, pyopa.scale_to_byte, 3, 50)
         self.assertRaises(OverflowError, pyopa.scale_to_short, 3, 15000)
+
+    def test_scaled_matrices(self):
+        # the vectorized scaling must match the scalar functions entry by entry
+        for env in self.envs[::25]:
+            for threshold in (40.0, 85.0, 300.0):
+                env.threshold = threshold
+                env.create_scaled_matrices()
+                byte_factor, short_factor = env.byte_factor(), env.short_factor()
+                for i in range(26):
+                    for j in range(26):
+                        val = env.float64_matrix[i][j]
+                        self.assertEqual(env.int8_matrix[i][j], pyopa.scale_to_byte(val, byte_factor))
+                        self.assertEqual(env.int16_matrix[i][j], pyopa.scale_to_short(val, short_factor))
+                self.assertEqual(env.int8_matrix.dtype, numpy.int8)
+                self.assertEqual(env.int16_matrix.dtype, numpy.int16)
+
+        # a threshold this low makes the factor so large that the matrix overflows
+        env = self.envs[515]
+        env.threshold = 1.0
+        self.assertRaises(OverflowError, env.create_scaled_matrices)
+        env.threshold = 85.0
+
+    def test_ranges_match_full_reverse_scan(self):
+        # the reverse pass for the ranges stops early once it reaches the forward score;
+        # it must find the same start as scanning the whole reversed prefix
+        seqs = [self.s1, self.s2, pyopa.Sequence(self.s1.convert_readable()[300:900]),
+                pyopa.Sequence(self.s2.convert_readable()[100:400])]
+        for env in self.envs[::200]:
+            for a, b in itertools.permutations(seqs, 2):
+                score, max1, max2, min1, min2 = pyopa.align_double(a, b, env, False, False, True)
+
+                profile = pyopa.AlignmentProfile()
+                profile.create_profile_double(pyopa.Sequence(a.s_norm[max1::-1], True), env.float64_matrix)
+                rev = profile.align_double(pyopa.Sequence(b.s_norm[max2::-1], True), env)
+                self.assertAlmostEqual(rev[0], score, delta=abs(score) * 1e-10)
+                self.assertEqual((min1, min2), (max1 - rev[1], max2 - rev[2]))
+
+    def test_ranges_near_tie(self):
+        # with A/A almost 0, the alignment without the leading A(s) scores only marginally
+        # less than the full one; the reverse pass must not stop at that shorter alignment
+        env = pyopa.create_environment(-2, -1, 20, [[1e-11, -1], [-1, 1]], 'AB')
+        for s in ['AB', 'ABBBBB', 'AAB', 'A' + 'B' * 40]:
+            seq = pyopa.Sequence(s)
+            score, max1, max2, min1, min2 = pyopa.align_double(seq, seq, env, False, False, True)
+            self.assertEqual((min1, min2, max1, max2), (0, 0, len(s) - 1, len(s) - 1), msg=s)
 
     def test_create_env(self):
         simple_score = 3.78

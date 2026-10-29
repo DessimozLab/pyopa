@@ -354,7 +354,13 @@ def align_double(s1, s2, env, stop_at_threshold=False, is_global=False, calculat
                 profile1r = AlignmentProfile()
                 profile1r.create_profile_double(s1r, env.float64_matrix)
 
-                reversed = profile1r.align_double(s2r, env, stop_at_threshold)
+                # the reverse alignment reaches the score of the forward one exactly at the
+                # start of the alignment, so we can stop there instead of scanning the whole prefix.
+                # Stop only on reaching the forward score itself (the kernel stops when the score
+                # exceeds the threshold): with any tolerance, a slightly lower scoring, shorter
+                # alignment would end the scan too early. If rounding keeps the reverse score
+                # below the forward one, the whole prefix is scanned as before.
+                reversed = profile1r.align_double(s2r, env, threshold=np.nextafter(res[0], -np.inf))
                 assert( abs(res[0]-reversed[0]) <= abs(res[0])*1e-10 )
 
                 res.extend([res[1] - reversed[1], res[2] - reversed[2]])
@@ -609,13 +615,16 @@ cdef class AlignmentProfile:
         return scale_back(ret, env.short_factor())
 
 
-    cpdef align_double(self, s2, env, stop_at_threshold=False):
+    cpdef align_double(self, s2, env, stop_at_threshold=False, threshold=None):
         """
         Aligns the sequence s2 with the gap costs defined in the given AlignmentEnvironment
         to the profile by using double SSE alignment.
 
         :param s2: the sequence which we would like to align to the profile
         :param env: the AlignmentEnvironment that contains the gap opening/extending costs and the threshold
+        :param stop_at_threshold: if True, we terminate as soon as the score exceeds env.threshold
+        :param threshold: if given, we terminate as soon as the score exceeds this value (overrides
+         stop_at_threshold)
         :return: the result of the double alignment
         """
         cdef int max1[1]
@@ -627,12 +636,10 @@ cdef class AlignmentProfile:
         ret = []
         s2 = s2.s_norm
 
-        if not stop_at_threshold:
-            res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
-                                           env.gap_open, env.gap_ext, sys.float_info.max, max1, max2)
-        else:
-            res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
-                                           env.gap_open, env.gap_ext, env.threshold, max1, max2)
+        if threshold is None:
+            threshold = env.threshold if stop_at_threshold else sys.float_info.max
+        res = cpyopa.align_double_local(self._c_profileDouble, s2.encode('utf-8'), len(s2),
+                                       env.gap_open, env.gap_ext, threshold, max1, max2)
 
         ret.append(res)
         ret.append(max1[0] - 1)
@@ -679,14 +686,26 @@ class AlignmentEnvironment:
         """
 
         factor = self.byte_factor()
-        self.int8_matrix = np.vectorize(lambda x: scale_to_byte(x, factor))(self.float64_matrix ).astype(np.int8)
+        self.int8_matrix = self._scale_matrix(factor, -128, 127, np.int8, scale_to_byte)
         self.int8_gap_open = scale_to_byte(self.gap_open, factor)
         self.int8_gap_ext = scale_to_byte(self.gap_ext, factor)
 
         factor = self.short_factor()
-        self.int16_matrix = np.vectorize(lambda x: scale_to_short(x, factor))(self.float64_matrix ).astype(np.int16)
+        self.int16_matrix = self._scale_matrix(factor, -32768, 32767, np.int16, scale_to_short)
         self.int16_gap_open = scale_to_short(self.gap_open, factor)
         self.int16_gap_ext = scale_to_short(self.gap_ext, factor)
+
+    def _scale_matrix(self, factor, min_val, max_val, dtype, scale_func):
+        """
+        Vectorized version of applying scale_func (scale_to_byte or scale_to_short) to every
+        entry of the double matrix, with the same rounding, underflow and overflow behaviour.
+        """
+        scaled = self.float64_matrix * factor
+        overflow = scaled > max_val
+        if overflow.any():
+            # raises the same OverflowError as the scalar version
+            scale_func(self.float64_matrix[overflow][0], factor)
+        return np.ceil(np.maximum(scaled, min_val)).astype(dtype)
 
     #calculates the byte scaling factor
     def byte_factor(self):

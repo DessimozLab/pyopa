@@ -1,0 +1,47 @@
+name: Full darwin tests
+
+# compares with all darwin reference results, which takes too long for every
+# pull request (the regular tests use a subsample). Runs on pull requests that
+# change the computations or the reference tests.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    paths:
+      - "c_source/**"
+      - "pyopa/backend/**"
+      - "setup.py"
+      - "test/test_darwin.py"
+      - "test/data/**"
+      - ".github/workflows/full-tests.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: Set up uv and Python
+      uses: astral-sh/setup-uv@v10.3.2
+      with:
+        python-version: "3.14"
+        activate-environment: true
+    - name: Installation
+      env:
+        PYOPA_REQUIRE_OPENMP: "1"
+      run: |
+        uv pip install -v .
+        uv pip install --group test
+    - name: Test with pytest
+      env:
+        PYOPA_TEST_FULL: "1"
+      run: pytest -v test/test_darwin.py

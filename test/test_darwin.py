@@ -98,21 +98,25 @@ class AlignTest(unittest.TestCase):
                     self.alignment_profiles[curr.s1_id] = p
                 '''
 
-    #def test_align(self):
-    #    threading.stack_size(67104768)
-    #    t = threading.Thread(None, self._align_t, 'Aligning Thread')
-    #    t.start()
-    #    t.join()
+    def sample_results(self):
+        """
+        All darwin results if PYOPA_TEST_FULL is set (takes several minutes), otherwise a
+        fixed subsample: every 20th result with an alignment (which also checks
+        estimate_pam) and every 200th of the others.
+        """
+        if os.environ.get('PYOPA_TEST_FULL'):
+            return list(enumerate(self.darwin_results))
+        with_al = [(i, r) for i, r in enumerate(self.darwin_results) if r.als1 != '']
+        without_al = [(i, r) for i, r in enumerate(self.darwin_results) if r.als1 == '']
+        return sorted(with_al[::20] + without_al[::200], key=lambda x: x[0])
 
-    #def _align_t(self):
-    @unittest.skip("skip long runningtest")
     def test_align(self):
-        print('Running alignment tests...')
+        results = self.sample_results()
+        print('Running alignment tests on %d of %d results...' % (len(results), len(self.darwin_results)))
         completed = 0
-        max_alignments = len(self.darwin_results)
-        progress_step = int(np.ceil(max_alignments / 100))
+        progress_step = int(np.ceil(len(results) / 100))
 
-        for r in self.darwin_results:
+        for test_id, r in results:
             s1 = self.sequences[r.s1_id - 1]
             s2 = self.sequences[r.s2_id - 1]
             env = self.alignment_environments[r.matrix_nr - 1]
@@ -138,24 +142,24 @@ class AlignTest(unittest.TestCase):
                                        delta=r.ep_sim *10**(1-self.precision),
                                        msg='Incorrect EstimatePam similarity score: %.10f != %.10f.'
                                            'Test id: %d' %
-                                           (ep_result[0], r.ep_sim, completed + 1))
+                                           (ep_result[0], r.ep_sim, test_id + 1))
                 self.assertAlmostEqual(ep_result[1], r.ep_pamn, delta=r.ep_pamn*10**(1-self.precision))
                 self.assertAlmostEqual(ep_result[2], r.ep_var, delta=r.ep_var*10**(1-self.precision))
 
             self.assertAlmostEqual(scalar_result_reference, r.score_double, places=self.precision,
                                    msg='Incorrect reference double score: %.8f. The correct score is: %.8f, test id: %d'
-                                       % (scalar_result_reference, r.score_double, completed + 1))
+                                       % (scalar_result_reference, r.score_double, test_id + 1))
             self.assertGreaterEqual(short_result, r.score_double,
                                     msg="Short score (%f) must be greater or equal"
                                         " than double score (%f), test id: %d'."
-                                        % (short_result, r.score_double, completed + 1)
+                                        % (short_result, r.score_double, test_id + 1)
             )
             self.assertGreaterEqual(byte_result, r.score_double,
                                     msg="Byte score must be greater or equal than double score.")
             self.assertAlmostEqual(double_result, r.score_double,
                                    places=self.precision,
                                    msg='Incorrect double score: %.8f. The correct score is: %.8f, test id: %d' %
-                                   (double_result, r.score_double, completed + 1))
+                                   (double_result, r.score_double, test_id + 1))
             '''
             if byte_result > r.threshold:
                 self.assertGreaterEqual(byte_result, sys.float_info.max)
@@ -163,7 +167,7 @@ class AlignTest(unittest.TestCase):
                 self.assertAlmostEqual(byte_result, r.score_byte,
                                        places=7,
                                        msg='Incorrect byte score: %.8f. The correct score is: %.8f, test id: %d' %
-                                       (byte_result, r.score_byte, completed + 1))
+                                       (byte_result, r.score_byte, test_id + 1))
             '''
             if short_result > r.threshold:
                 self.assertGreaterEqual(short_result, sys.float_info.max)
@@ -171,13 +175,13 @@ class AlignTest(unittest.TestCase):
                 if short_result < r.score_short and (r.score_short - short_result) > 0.01:
                     #print("Warning: python short score(%f) is less than darwin's, but still bigger" \
                     #      " than the double score(%f) at id: %d!" \
-                    #      % (short_result, r.score_double, completed + 1))
+                    #      % (short_result, r.score_double, test_id + 1))
                     pass
                 else:
                     self.assertAlmostEqual(short_result, r.score_short,
                                            places=self.precision,
                                            msg='Incorrect short score: %.8f. The correct score is: %.8f, test id: %d' %
-                                               (short_result, r.score_short, completed + 1))
+                                               (short_result, r.score_short, test_id + 1))
 
             completed += 1
             if (completed % progress_step == 0):

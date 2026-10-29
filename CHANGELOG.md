@@ -4,7 +4,7 @@ All notable changes to pyopa are documented in this file. Versions that
 were tagged but never published on PyPI are marked as such; their
 changes are released with the following version.
 
-## Unreleased
+## 0.9.0 - 2026-10-30
 
 ### Added
 - `MutipleAlEnv.estimate_many_pam` estimates the PAM distances of all

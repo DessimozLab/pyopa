@@ -15,6 +15,9 @@ changes are released with the following version.
   ([#29](https://github.com/DessimozLab/pyopa/pull/29)).
 - Wheels for Linux aarch64 and for Python 3.14 and 3.15
   ([#27](https://github.com/DessimozLab/pyopa/pull/27)).
+- Wheels for Windows x86_64 and arm64 (Python 3.11 or newer on arm64, as
+  numpy has no Windows arm64 wheels for Python 3.10); Windows is tested in
+  CI ([#33](https://github.com/DessimozLab/pyopa/pull/33)).
 
 ### Changed
 - Requires Python 3.10 or newer; no more wheels for Python 3.6 to 3.9.
@@ -53,6 +56,9 @@ changes are released with the following version.
   matrices while `estimate_many_pam` is running; using freed matrices
   raises a `RuntimeError` instead of crashing
   ([#28](https://github.com/DessimozLab/pyopa/pull/28)).
+- `align_double` truncated pointers on 64-bit Windows, where `long` is
+  32 bits ([#33](https://github.com/DessimozLab/pyopa/pull/33)).
+- Compiler warnings about implicit conversions with MSVC ([#33](https://github.com/DessimozLab/pyopa/pull/33)).
 
 ## 0.8.6 - 2025-04-24
 

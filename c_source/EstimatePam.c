@@ -610,7 +610,7 @@ DayMatrix* createDayMatrices(double* gapOpen, double* gapExt,
 #ifdef PY_DEBUG
 		printf("Creating day matrix:\n");
 		printf("FixedDel = %f\nIncDel = %f\nPamNumber = %f\n", gapOpen[i], gapExt[i], pamDistances[i]);
-		printf("Simi at %lx:\n", (long)matrix_pointers[i]);
+		printf("Simi at %p:\n", (void*) matrix_pointers[i]);
 		for(k = 0; k < MATRIX_DIM; ++k) {
 			printf("\t[");
 			for(l = 0; l < MATRIX_DIM; ++l) {

@@ -7,12 +7,14 @@
 
 /* According to http://stackoverflow.com/questions/1919183/how-to-allocate-and-free-aligned-memory-in-c */
 
+#include <stdint.h>
 #include "Python_extension.h"
 #include "DynProgr_sse_double.h"
 
 void *aligned_malloc(int align, int size) {
 	char *mem = malloc(size + align + sizeof(char*));
-	char **ptr = (char**) ((long) (mem + align + sizeof(char*)) & ~(align - 1));
+	/* uintptr_t, as long is only 32 bits on 64-bit Windows */
+	char **ptr = (char**) ((uintptr_t) (mem + align + sizeof(char*)) & ~(uintptr_t) (align - 1));
 	ptr[-1] = mem;
 	return ptr;
 }
